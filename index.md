@@ -5,12 +5,48 @@
 layout: page
 ---
 
+<style>
+    .headertext {
+        font-size: 60px;
+        padding-bottom: 90px;
+        text-align: center;
+    }
 
+    .button {
+        padding: 16px 32px;
+        text-align: center;
+        /* text-decoration: none; */
+        /* display: inline-block; */
+        /* font-size: 16px; */
+        margin: 4px 2px;
+        transition-duration: 0.4s;
+        cursor: pointer;
+        background-color: white; 
+        color: black; 
+        border: 2px solid #000000;
+        border-radius: 20px;
+    }
 
-![image](images/anya_pic.jpg){: style="float: left; margin-right: 1em;"}
+    .button:hover {
+        background-color: #4178db;
+        color: white;
+    }
+</style>
 
-Hi! I'm Anya Agarwal, an incoming fourth year student at UC Berkeley studying computer science and design. 
+<div class="headertext">Welcome to my website!</div>
 
-I'm currently fascinated with the realm of computer graphics and front-end design — aka the intersection of art and software engineering. 
+<p style="text-align: center;">Click on the following buttons to learn more about me:</p>
 
-In my free time, you can find me exploring local coffee shops, 3D modeling/animating, playing tennis, or cultivating my farm in the game Stardew Valley.
+<div style="display: flex; align-items: center; justify-content: space-evenly; padding-top: 10px">
+    <a href="https://anya0402.github.io/about/">
+    <button class="button">About Me</button>
+    </a>
+
+    <a href="https://anya0402.github.io/projects/">
+    <button class="button">My Projects</button>
+    </a>
+
+    <a href="https://anya0402.github.io/resume/">
+    <button class="button">My Resume</button>
+    </a>
+</div>

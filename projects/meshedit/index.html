@@ -1,0 +1,536 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<style>
+			body {
+			    background-color: #d5f4f7;
+			    padding: 100px;
+			    width: 1000px;
+			    margin: auto;
+			    text-align: left;
+			    font-weight: 300;
+			    font-family: 'Nunito', sans-serif;
+			    color: #121212;
+			  }
+			  h1, h2, h3, h4 {
+			    font-family: 'Nunito', sans-serif;
+			  }
+		</style>
+		<title>CS 184 Project 2: MeshEdit</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<link href=https://fonts.googleapis.com/css?family=Nunito rel="stylesheet">
+
+		<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    		<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+	</head>
+	<body>
+		<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2024</h1>
+		<h1 align="middle">Project 2: MeshEdit</h1>
+		<h2 align="middle">Christy Quang, Anya Agarwal</h2>
+
+
+		<div>
+			<h2 align="middle">Overview</h2>
+			<hr>
+				<p>
+					Site: <a href="https://cal-cs184-student.github.io/hw-webpages-sp24-christyquang/hw2/index.html">https://cal-cs184-student.github.io/hw-webpages-sp24-christyquang/hw2/index.html</a>
+				</p>
+					
+				<p>
+					In this project, we build Bezier curves and surfaces using algorithms such as the de Casteljau algorithm. We also implememt features to manipulate give triangle meshes using the half-edge data structure. These features include performing edge splitting and edge flipping, which ultimately allows us to implement loop subdivision. This is quite an important feature for geometric 3D modeling, as it allows the artist to smoothen their meshes, as well as make them more detailed and customized to their liking. Being able to edit meshes after their original creation provides ease of modeling and being able to make small edits with the mesh. Focusing on the Bezier curves and surfaces themselves, implementing these features allows us to understand exactly how curvature is able to be simulated in a realistic way. Creating Bezier curves and surfaces allows us to create meshes in the first place, which we can then use to model 3D objects and edit the meshes with the functions described earlier.
+				</p>
+
+				<p>
+					We found it particularly interesting how the assignment builds on each other, and allows full understanding of what lays underneath geometric modeling. First, we build the actual Bezier curves and surfaces, then we build implementation to edit these curves and meshes to our liking. It was especially interesting navigating the half-edge data structure. Although a bit complicated at first, the different parameters and built-in functions proved to be extremely useful when working with the meshes. It allowed for easy access to the different parts of the mesh, so that we could edit only exactly what we needed to edit without a lot of overhead.
+				</p>
+			<hr>
+			
+			<h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+			
+			<h3 align="middle">Part 1: Bezier curves with 1D de Casteljau subdivision</h3>
+			<hr>
+				<p>
+					de Casteljau's algorithm is a recursive method that allows us to calculate a Bezier curve from a set of points. Given <code>n</code> control points, we recursively subdivide the <code>n-1</code> line segments between the control points and define interpolated points. The process involves connecting the points to create edges, then we evaluate each edge at a parameter <code>t</code> which is between <code>0</code> and <code>1</code>, representing a fraction of the distance from one point to the other point. For example, we can have points <code>x0</code> and <code>x1</code>, where point <code>x01</code> is along the line from <code>x0</code>. Since <code>t</code> determines our location between the points, when <code>t = 0</code>, we are at <code>x0</code>. We connect the points to get a connection of edges that is one less than the previous number of edges. We recursively interpolate points until we run out of line segments (keep creating line segments between adjacent interpolated points and put a new interpolated point on that line segment). The final point we arrive at is a point on the Bezier curve at the given parameter <code>t</code>.
+				</p>
+	
+				<p>
+					We implemented <code>evaluateStep</code> which performs one step of the algorithm (or one level of subdivision) each time it is called. First, we obtain the size of the most recent level using <code>points.size()</code>. If the level is <code>1</code>, we can just return <code>points</code>. Otherwise, we use the algebraic formula $$p_i' = \text{lerp}(p_i, p_{i+1}, t) = (1 - t)p_i + tp_{i+1}$$ to find the interpolated point between each pair of adjacenet points up to the most recent level (<code>numPoints - 1</code>), enabling us to get to the last evaluated point.
+				</p>
+
+				<p>
+					Below are screenshots of each step of the evaluation from the original control points down to the final evaluated point.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task1-6-control-pts.png" width="100%" />
+						<p>
+							Original control points
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task1-step2.png" width="100%" />
+						<p>
+							Bezier curve Step 1
+						</p>
+				    	</div>
+				</div>
+
+				<br><br>
+				
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task1-step3.png" width="100%" />
+						<p>
+							Bezier curve Step 2
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task1-step4.png" width="100%" />
+						<p>
+							Bezier curve Step 3
+						</p>
+				   	 </div>
+				</div>
+
+				<br><br>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task1-step5.png" width="100%" />
+						<p>
+							Bezier curve Step 4
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task1-step6.png" width="100%" />
+						<p>
+							Bezier curve Step 5
+						</p>
+				   	 </div>
+				</div>
+
+				<p>
+					Here’s the completed Bezier curve created from running de Casteljau’s algorithm above.
+				</p>
+
+				<div style="text-align: center;">
+					<img src="images/task1-6-control-pts-w-completed.png" width="750px" />
+					<p>Completed Bezier curve</p>
+				</div>
+
+				<p>
+					We can also drag and move the original control points to create a new Bezier curve. Below is an example of a modified Bezier curve we've created.
+				</p>
+
+				<div style="text-align: center;">
+					<img src="images/task1-diff-curve-step2.png" width="750px" />
+					<p>Different Bezier curve</p>
+				</div>
+
+				<p>
+					Lastly, we are able to modify the parameter <code>t</code> to show the other points lie along the completed green Bezier curve.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+					<div style="flex: 1; margin-right: 10px; text-align: center;">
+						<img src="images/task1-diff-curve-diff-t-left.png" width="100%" />
+						<p>
+							Different Bezier curve and lower <code>t</code> value
+						</p>
+					</div>
+					<div style="flex: 1; margin-right: 10px; text-align: center;">
+						<img src="images/task1-diff-curve-diff-t-mid.png" width="100%" />
+						<p>
+							Different Bezier curve and slightly increasing <code>t</code> value
+						</p>
+					</div>
+					<div style="flex: 1; margin-left: 10px; text-align: center;">
+						<img src="images/task1-diff-curve-diff-t-right.png" width="100%" />
+						<p>
+							Different Bezier curve and greatest increasing <code>t</code> value
+						</p>
+					</div>
+				</div>
+			<hr>
+
+			<h3 align="middle">Part 2: Bezier surfaces with separable 1D de Casteljau</h3>
+			<hr>
+				<p>
+					The de Casteljau algorithm extends to Bezier surfaces because we are able to apply the same process we did for the 1 dimensional curve to a 2 dimensional curve by adding another dimension. Applying multiple Bezier curves together creates a Bezier surface. In Part 1, we had <code>n</code> control points to define a Bezier curve but in Part 2, we had a matrix of <code>n x n</code> control points to define a Bezier curve. We perform the 1D de Casteljau algorithm on each row to get one point per row for each <code>u</code> via calling the <code>evaluate1D</code> function repeatedly. Then, we performed the algorithm and interpolation again on the points to get the final point in the <code>v</code> direction, resulting in one point that lies on the Bezier surface at the given <code>u</code> and <code>v</code>.
+				</p>
+
+				<div style="text-align: center;">
+				    	<img src="images/task2.png" width="750px" />
+					<p>Screenshot of <code>bez/teapot.bez</code></p>
+				</div>
+			<hr>
+
+			<h2 align="middle">Section II: Triangle Meshes and Half-Edge Data Structure</h2>
+
+			<h3 align="middle">Part 3: Area-weighted vertex normals</h3>
+			<hr>
+				<p>
+					We implemented the area-weighted vertex normals by iterating through all the triangles incident to the vertex (faces that have the given vertex as one of the vertices), allowing us to have smoother shading on <code>dae/teapot.dae</code>. First, we iterated through the half-edges incident to the vertex <code>h</code>. Inside the loop, we calculate the normal vector of each triangle incident to the vertex. We found the positions of three vertices: the current vertex (<code>commonPoint</code>) and two vertices connected to it through two consecutive half-edges. Then, we computed the vectors representing the sides of the triangle formed by the vertices. The normal of the triangle is calculated by taking the cross product of these two edges which is added to <code>weightedNormal</code>, accumulating the contributions from all of the triangles (gets the area-weighted normal of the face). After iterating through the faces, we return the re-normalized unit vector by calling <code>weightedNormal.unit()</code>.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task3-flat-shading.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> without vertex normals (flat shading)
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task3-phong-shaded.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> with vertex normals (Phong shading)
+						</p>
+				    	</div>
+				</div>
+			<hr>
+
+			<h3 align="middle">Part 4: Edge flip</h3>
+			<hr>
+				<p>
+					When there is an edge shared between two triangles, the edge flip operation changes the orientation such that the edge now spans across the other two corners of the triangles. To do this, we first kept track of all the mesh elements: half-edges, vertices, edges, or faces. The edge flip operation reassigns pointers to these elements so it's important to keep track of where each element changes to, otherwise it's very messy to implement. Before implementing the function, we drew out the before and after meshes of the edge flip, taking note of how each element changed. 
+				</p>
+
+				<div style="text-align: center;">
+				    	<img src="images/task4-brainstorm.jpg" width="750px" />
+					<p>Screenshot of our brainstorming process when implementing the edge flip functionality</p>
+				</div>
+
+				<p>
+					We had hoped that by doing this, it would save us a lot of debugging time since we were certain that the pointers were reassigned correctly. We created variables for every element starting with the half-edges and utilized the <code>setNeighbors</code> function on each half-edge to make sure that the neighboring elements were correctly assigned. Drawing the meshes was extremely helpful but I still spent a couple of hours debugging an extremely small bug where I had written <code>HalfedgeIter h9 = h4->twin();</code> instead of <code>HalfedgeIter h9 = h5->twin();</code>. This caused edge flips to not work on certain edges on the teapot which would crash the program. Besides this terrible bug, the function was fun to implement and here are some screenshots displaying before/after an edge flip, as well as <code>dae/teapot.dae</code> after a series of cool edge flips.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task4-before-flip.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> before an edge flip
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task4-after-flip.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> after an edge flip
+						</p>
+				    	</div>
+				</div>
+
+				<div style="text-align: center;">
+				    	<img src="images/task4-cool-flips.png" width="750px" />
+					<p><code>dae/teapot.dae</code> with some cool edge flips</p>
+				</div>
+			<hr>
+
+			<h3 align="middle">Part 5: Edge split</h3>
+			<hr>
+				<p>
+					When there is an edge shared between two triangles, the edge split operation inserts a new vertex <code>m</code> at its midpoint and connects the new vertex to each opposing vertex that didn't previously have an edge connecting to them, creating four triangles from two adjacent triangles. This operation was similar to the edge flip operation but there were a few new components to keep track of since an edge split adds new mesh elements: a new vertex, two new triangles (six new half-edges), three new edges, and two new faces. 
+				</p>
+
+				<p>
+					With all of the new elements being added, there are more pointers to keep track of than for the edge flip operation so we followed the same strategy of drawing out the before and after meshes of the edge split, taking note of how each element changed. 
+				</p>
+
+				<div style="text-align: center;">
+				    	<img src="images/task5-brainstorm.jpg" width="750px" />
+					<p>Screenshot of our brainstorming process when implementing the edge split functionality</p>
+				</div>
+
+				<p>
+					Despite drawing the mesh after the edge split, it was significantly harder than the edge flip functionality because we had to decide where to put the new elements. We created variables for every element starting with the half-edges, and created new variables to represent the new elements being added. Similar to the edge flip method, we utilized the <code>setNeighbors</code> function on each half-edge to make sure that the neighboring elements were correctly assigned. With the new pointers being created/assigned, there are now four half-edge cycles instead of the previous two. As a result, I had to change the half-edges, vertices, edges, twins, and faces for a majority of the half-edges. The new vertex is just the middle distance between the two endpoints of edge <code>e0</code>. The diagram significantly helped me and made implementing this function mostly bug-free.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task5-before-split.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> before an edge split
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task5-after-split.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> after an edge split
+						</p>
+				    	</div>
+				</div>
+
+				<br><br>
+				
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task5-before-flips-splits.png" width="100%" />
+						<p>
+							Part 1: <code>dae/teapot.dae</code> after some cool edge splits and flips
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task5-after-flips-splits.png" width="100%" />
+						<p>
+							Part 2: <code>dae/teapot.dae</code> after some cool edge splits and flips
+						</p>
+				   	 </div>
+				</div>
+			<hr>
+
+			<h3 align="middle">Part 6: Loop subdivision for mesh upsampling</h3>
+			<hr>
+				<p>
+					To implement loop subdivision, we mainly followed the steps given in the spec and in the function definition. First, we computed all the new positions of the original vertices, as well as the position of the new vertices created by edge splitting. This involved iterating through all the vertices in the edge, finding the halfedges and calculating the sum of the positions of the adjacent vertices. Specifically, the new position was calculated by <code>v->newPosition = (1.0 - n * u) * v->position + u * weighted_sum;</code>. <code>n</code> represented the number of edges incident to the vertex and <code>u = 3/16</code> if <code>n = 3</code>, otherwise <code>3/(8n)</code>. <code>weightedSum</code> represented the sum of all the original positions of neighboring vertices.
+				</p>
+
+				<p>
+					To compute the new positions, we traversed through the edges and for each edge, we found the surrounding edges and vertices and calculated <code>e->newPosition = (3.0/8.0) * (v0->position + v1->position) + (1.0/8.0) * (v2->position + v3->position);</code>. <code>v0</code> and <code>v1</code> represented the two vertices connecting the current edge. Then, we actually split the edge, making sure to only split the original edges and not the newly added edges. 
+				</p>
+
+				<p>
+					Afterwards, we flip certain edges, being careful that we are only flipping those that connect a new and old vertex, and are also newly added edges. This was done by iterating through all the edges and flipping them by connecting an old vertex to a new one.
+				</p>
+
+				<p>
+					Finally, we actually update the vertex positions with the values that were calculated earlier by copying their <code>newPosition</code> into their <code>position</code> attribute. One very key and interesting implementation trick we used is incorporating the <code>isNew</code> flag for vertices and edges, helping us ensure that we were only splitting and flipping the edges that we need to. This involved going back to the previous functions, specifically <code>splitEdge</code>, and setting the <code>isNew</code> flag whenever we created a new vertex or edge. 
+				</p>
+
+				<p>
+					It seems that after loop subdivision, the sharp corners and edges are smoothened out. They become more round, as shown in these pictures below because we are increasing the number of triangles, allowing for more smooth curves to develop. 
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-icosahedron1.png" width="100%" />
+						<p>
+							Icosahedron Loop Subdivision 1
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-icosahedron2.png" width="100%" />
+						<p>
+							Icosahedron Loop Subdivision 2
+						</p>
+				    	</div>
+				</div>
+
+				<br><br>
+				
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-torus1.png" width="100%" />
+						<p>
+							Torus Loop Subdivision 1
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-torus2.png" width="100%" />
+						<p>
+							Torus Loop Subdivision 2
+						</p>
+				   	 </div>
+				</div>
+
+				<br><br>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-cow1.png" width="100%" />
+						<p>
+							Cow Loop Subdivision 1
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-cow2.png" width="100%" />
+						<p>
+							Cow Loop Subdivision 2
+						</p>
+				   	 </div>
+				</div>
+
+				<p>
+					However with loop subdivision, this results in edges being lost as a result of increasing the number of triangles. There are some cases where this is ideal, but others where we'd want to keep the sharpness of corners and edges while still performing subdivision. In these cases, we could potentially pre-split some edges, specifically those that aren't edges and corners. We could potentially calculate whether something is an edge or corner by looking at the angle of two connecting faces, or have another flag that marks this information.
+				</p>
+
+				<p>
+					Here are screenshots of several iterations of loop subdivision on the cube.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-cube1.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loaded
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-cube2.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 1
+						</p>
+				    	</div>
+				</div>
+
+				<br><br>
+				
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-cube3.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 2
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-cube4.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 3
+						</p>
+				   	 </div>
+				</div>
+
+				<br><br>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-cube5.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 4
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-cube6.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 5
+						</p>
+				   	 </div>
+				</div>
+
+				<p>
+					As we can see, the cube becomes slightly asymmetric after repeated subdivisions. This could be because splitting and flipping the edges on the side of the cube have different results from splitting and flipping the edges that lay on the surface of the cube. For the cube specifically, it ends up being asymmetric because the faces of the cube only have one diagonal, instead of a symmetric two diagonals. This causes subdivisions to pull more in one direction than the other.
+				</p>
+
+				<p>
+					We attempted to reduce this by pre-splitting some edges. Below are some images of upsampling with pre-split edges which still shows that the sharpness remains despite the image smoothening out.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-presplit.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> with pre-split edges
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-presplit-step1.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 1
+						</p>
+				   	 </div>
+				</div>
+
+				<br><br>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-presplit-step2.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 2
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-presplit-step3.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 3
+						</p>
+				   	 </div>
+				</div>
+
+				<p>
+					As a result, when we pre-process the splitting and flipping of edges, we can control which ones we do so that only the ones that keep the symmetry of the cube are edited. Here are screenshots of loop subdivision on the cube, but with edges pre-processed before the loop subdivision. In this case, we are splitting the edges on the faces of the cube before performing loop subdivision on the whole cube.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-symmetric-subdivision-preprocessed.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> pre-processed with one split on each face
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-symmetric-step1.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 1 after pre-processing
+						</p>
+				   	 </div>
+				</div>
+
+				<br><br>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-symmetric-step2.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 2 after pre-processing
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-symmetric-step3.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 3 after pre-processing
+						</p>
+				   	 </div>
+				</div>
+
+				<br><br>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-symmetric-step4.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 4 after pre-processing
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-symmetric-step5.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 5 after pre-processing
+						</p>
+				   	 </div>
+				</div>
+
+				<p>
+					The difference in asymmetry is shown when comparing <code>dae/teapot.dae</code> images with no pre-processing and with pre-processing. The one on the left has weird bumps from the corners of the cube whereas the one on the right is more symmetrical and smooth.
+				</p>
+
+				<div style="display: flex; justify-content: space-between;">
+					
+				    	<div style="flex: 1; margin-right: 10px; text-align: center;">
+				        	<img src="images/task6-nopreprocessing-step5.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 5, no pre-processing
+						</p>
+				    	</div>
+				    	<div style="flex: 1; margin-left: 10px; text-align: center;">
+				        	<img src="images/task6-symmetric-step5.png" width="100%" />
+						<p>
+							<code>dae/teapot.dae</code> loop subdivision step 5, after pre-processing
+						</p>
+				   	 </div>
+				</div>
+			<hr>
+		</div>
+	</body>
+</html>

@@ -3,7 +3,7 @@
 
   <div class="wrapper">
 
-    <h2 class="footer-heading">{{ site.title | escape }}</h2>
+    <!-- <h2 class="footer-heading">{{ site.title | escape }}</h2> -->
 
     <div class="footer-col-wrapper">
       <div class="footer-col footer-col-1">
@@ -22,7 +22,25 @@
       </div>
 
       <div class="footer-col footer-col-2">
-        {%- include social.html -%}
+        <ul class="social-media-list">
+          <li>
+            <a href="https://www.linkedin.com/in/anya-agarwal/">
+              <svg class="svg-icon">
+                <use xlink:href="/assets/minima-social-icons.svg#linkedin"></use>
+              </svg> 
+              <span class="username">anya-agarwal</span>
+            </a>
+          </li>
+          <li>
+            <a href="https://github.com/anya0402">
+              <svg class="svg-icon">
+                <use xlink:href="/assets/minima-social-icons.svg#github"></use>
+              </svg> 
+              <span class="username">anya0402</span>
+            </a>
+          </li>
+        </ul>
+
       </div>
 
       <div class="footer-col footer-col-3">

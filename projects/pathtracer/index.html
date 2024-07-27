@@ -1,0 +1,994 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<style>
+			body {
+			    background-color: #eae1f5;
+			    padding: 100px;
+			    width: 1000px;
+			    margin: auto;
+			    text-align: left;
+			    font-weight: 300;
+			    font-family: 'Nunito', sans-serif;
+			    color: #121212;
+			  }
+			  h1, h2, h3, h4 {
+			    font-family: 'Nunito', sans-serif;
+			  }
+			  table {
+			    width: 100%;
+			    border-collapse: collapse;
+			  }
+			  th, td {
+			    border: 1px solid black;
+			    padding: 8px;
+			    text-align: left;
+			  }
+			  th {
+			    background-color: #ECF8F7;
+			  }
+			  kbd {
+				  color: #121212;
+			  }
+		</style>
+		<hr>
+		<title>CS 184 Project 3: Pathtracer</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<link href=https://fonts.googleapis.com/css?family=Nunito rel="stylesheet">
+
+		<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    		<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+	</head>
+	<body>
+		<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2024</h1>
+		<h1 align="middle">Project 3: Pathtracer</h1>
+		<h2 align="middle">Christy Quang, Anya Agarwal</h2>
+	</body>
+
+	<div>
+		<hr>
+		<!-- Add Website URL -->
+		<h2 align="middle">Website URL: <a href="https://cal-cs184-student.github.io/hw-webpages-sp24-christyquang/hw3/index.html">Here</a></h2>
+
+		<br><br>
+
+		<div style="text-align: center;">
+			<img src="images/CBbunny m=5 o=1.png" width="50%" />
+			<p><code>CBbunny.dae</code></p>
+		</div>
+
+		<hr>
+		<h2 align="middle">Overview</h2>
+		<p>
+			The purpose of this homework is to learn how to implement the different components of a ray tracer. First, we learned how to convert between camera space and world space, allowing us to generate samples and intersect rays with triangles and spheres with the Möller-Trumbore algorithm. We were able to construct a BVH to accelerate ray tracing. Splitting points are chosen based on a heuristic and we split primitives into BVH nodes.
+		</p>
+
+		<p>
+			Direct illumination was the next component we learned to implement, consisting of uniform hemisphere sampling and importance sampling. This allowed us to see the difference between the two sampling methods. Global illumination is a combination of indirect and direct lighting, which we incorporated next. Within global illumination, multi-bounce rendering and Russian Roulette rendering were aspects included to demonstrate their impact on the image result and rendering speed. Lastly, adaptive sampling gave us the ability to optimize rendering efficiency - specifically calculating to sample more on "difficult" locations versus sampling less on locations where pixels converged faster.
+		</p>
+
+		<p>
+			Ultimately, this project was extremely difficult since we faced many bugs during the peak of midterm season, but we were able to implement various ray tracing techniques and render cool images!
+		</p>
+
+		<hr>
+
+		<h2 align="middle">Part 1: Ray Generation and Scene Intersection</h2>
+			
+		<h3 align="middle">Task 1: Generating Camera Rays</h3>
+		<hr>
+			<p>
+				When generating camera rays, we need to transform the image coordinates <code>(x, y)</code> to camera space by interpolation. In the camera space, the camera is positioned at <code>(0, 0, 0)</code> and looks along its <code>-Z</code> axis. There is an axis-aligned rectangular virtual camera sensor that lies on the <code>Z = -1</code> plane which is why we need to use <code>hFov</code> and <code>vFov</code> field of view angles along the `<code>X</code> and <code>Y</code> axis to transform into camera space. For normalized image coordinates, <code>(0, 0)</code> is the camera origin so we needed to first shift the normalized <code>x</code> and <code>y</code> coordinates to align the <code>Z</code> axis and rescale the normalized coordinates. 
+			</p>
+
+			<p>
+				Now, in 3-dimensional camera coordinations, we have the vector <code>direction</code> containing <code>x</code>, <code>y</code>, and <code>-1</code>. This is the ray direction vector which is used to transform the camera space ray to world space using the camera-to-world rotation matrix, <code></code>c2w (a 4x4 homogeneous coordinate system transform matrix). Afterwards, we need to normalize <code>d</code>. For the defined ray, the camera is placed at <code>pos</code> (camera position in world space) which is utilized as column 4 and to set the range for the clipping planes, we initialized <code>min_t</code> and <code>max_t</code> of the <code>Ray</code> with <code>nclip</code> and <code>fclip</code> respectively.
+			</p>
+		<hr>
+
+		<h3 align="middle">Task 2: Generating Pixel Samples</h3>
+		<hr>
+			<p>
+				After creating the camera rays in world space, we generate pixel samples by first generating <code>ns_aa</code> random samples within the pixel. While iterating through all of the pixel samples, we obtain a random sample and normalize the coordinates. Then, we call <code>camera->generate_ray</code>, passing in the normalized <code>(x, y)</code> coordinates, and then call <code>est_radiance_global_illumination</code> to estimate the radiance. After all the samples are processed, we averaged out the pixel color with <code>vec_sum = vec_sum/num_samples</code> and update the <code>sampleBuffer</code> by calling <code>update_pixel</code> with that color.
+			</p>
+		<hr>
+
+		<h3 align="middle">Task 3: Ray-Triangle Intersection</h3>
+		<hr>
+			<p>
+				To implement ray-triangle intersection, we used Möller-Trumbore intersection algorithm derived from lecture. The <code>Triangle::has_intersection</code> method allows us to test whether there is an intersection between a triangle and the input ray. The bulk of this algorithm lies within the intersection algorithm used where these parameters are computed using the Möller–Trumbore algorithm and determine if and where the ray intersects with the plane of the triangle, and then checks if the intersection point lies within the triangle itself.
+			</p>
+
+			<ul>
+				<li>
+					<code>test_vec.x</code> contains the parameter <code>t</code> of the ray equation where the intersection occurs
+				</li>
+				<li>
+					<code>test_vec.y</code> contains the parameter <code>b1</code>, which represents the barycentric coordinate of the intersection point with respect to the triangle's vertices
+				</li>
+				<li>
+					<code>test_vec.z</code> contains the parameter <code>b2</code>, another barycentric coordinate
+				</li>
+			</ul>
+
+			<p>
+				Intersection Testing:
+			</p>
+
+			<ul>
+				<li>
+					If any of the barycentric coordinates <code>(b1, b2)</code> are less than <code>0</code> or their sum is greater than <code>1</code>, it means the intersection point lies outside the triangle so the function returns false
+				</li>
+				<li>
+					If the parameter <code>t</code> is outside the valid range <code>[r.min_t, r.max_t]</code>, the intersection point is not within the segment of the ray being considered so the function returns false
+				</li>
+				<li>
+					Otherwise, <code>r.max_t</code> is updated to <code>t</code> to limit the maximum intersection distance of the ray and returns true, indicating an intersection has been found
+				</li>
+			</ul>
+
+			<p>
+				If an intersection is found, the function updates the intersection data (<code>isect</code>) with relevant information:
+			</p>
+
+			<ul>
+				<li>
+					<code>t</code>: the parameter <code>t</code> of the ray equation where the intersection occurs
+				</li>
+				<li>
+					<code>n</code>: the surface normal at the intersection point calculated as the weighted sum of the triangle's vertex normals (<code>n1</code>, <code>n2</code>, <code>n3</code>) based on the barycentric coordinates
+				</li>
+				<li>
+					<code>primitive</code>: a pointer to the triangle primitive that was intersected
+				</li>
+				<li>
+					<code>bsdf</code>: a pointer to the surface material (<code>BSDF</code>) at the hit point
+				</li>
+			</ul>
+
+			<p>
+				Essentially, we combine Barycentric coordinates and an implicit definition of a plane to determine whether the intersection point resides inside a triangle primitive. 
+			</p>
+
+			<div style="text-align: center;">
+				<img src="images/1.3.png" width="50%" />
+				<p>Screenshot of <code>CBempty.dae</code></p>
+			</div>
+		<hr>
+
+		<h3 align="middle">Task 4: Ray-Sphere Intersection</h3>
+		<hr>
+			<p>
+				Ray-sphere intersection was similar since it incorporates the Möller-Trumbore intersection algorithm but a bit more involved than ray-triangle intersection. There is a new <code>test</code> method which returns true if there are intersections and writes the smaller of the two intersection times in <code>t1</code> and the larger in <code>t2</code>. Within these methods, we reduce the intersection points to the roots of a quadratic equation and the discriminant is used to determine the number of intersections. 
+			</p>
+
+			<ul>
+				<li>
+					<code>a</code>: represents the squared magnitude of the ray direction (<code>r.d</code>)
+				</li>
+				<li>
+					<code>b</code>: represents the dot product between the ray direction and the vector from the ray origin to the sphere center
+				</li>
+				<li>
+					<code>c</code>: represents the squared magnitude of the vector from the ray origin to the sphere center minus the squared radius of the sphere
+				</li>
+				<li>
+					<code>t_plus</code>, <code>t_minus</code>: variables to store the potential intersection times calculated using the quadratic formula
+				</li>
+			</ul>
+
+			<p>
+				As such, if <code>discriminant</code> is less than <code>0</code>, this means that the ray missed the sphere/doesn't intersection so we return false. If <code>discriminant</code> is non-negative, this indicates that there is at least one real root so we used the quadratic formula to determine the time of intersection and assign <code>t_plus</code> and <code>t_minus</code>. The function compares <code>t_plus</code> and <code>t_minus</code> to determine which one is smaller and larger in order to assign the smaller intersection time to <code>t1</code> and the larger one to <code>t2</code>.
+			</p>
+
+			<p>
+				If an intersection is found within the valid range <code>[r.min_t, r.max_t]</code> and <code>t1</code> is adequately updated using the <code>test</code> helper method, <code>has_intersection</code> updates <code>r.max_t</code> to the intersection time <code>t1</code> (the smaller of the two intersection times) and returns true. In <code>intersection</code>, we do the same in addition to populating <code>i</code> (<code>Intersection</code> object) as stated in the spec (<code>t</code>, <code>primitive</code>, <code>bsdf</code>) and the surface normal.
+			</p>
+
+			<h3>
+				Here are some images with normal shading for a ew small <code>.dae</code> files:
+			</h3>
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/1.4.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBspheres_lambertian.dae</code>
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/bench-normal-shading.png" width="100%" />
+					<p>
+						<code>../dae/sky/bench.dae</code>
+					</p>
+				 </div>
+			</div>
+
+			<br><br>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/cbdragon-normal-shading.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBdragon.dae</code>
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/coil-normal-shading.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBcoil.dae</code>
+					</p>
+				 </div>
+			</div>
+		<hr>
+
+		<h2 align="middle">Part 2: Bounding Volume Hierarchy</h2>
+			
+		<h3 align="middle">Task 1: Constructing the BVH</h3>
+		<hr>
+			<p>
+				In <code>BVHAccel::construct_bvh</code>, we first generate the outermost bounding box that encloses all the primitives in the given range (<code>start</code> to <code>end</code>). We iterate through all the primitives passed in the range and expand the bounding box to include each primitive's bounding box. 
+			</p>
+
+			<p>
+				We create a new BVHNode if the number of primitives (<code>num_prim</code>) is less than or equal to the <code>max_leaf_size</code> and initialize its start and end to be the start and end of the primitives.
+			</p>
+
+			<p>
+				If not, we need to recurse and determine the split point and axis selection to split up the bounding volume hierarchy. First, we computed the average centroid across all the primitives' bounding boxes within the node. This centroid is used to determine the split axis for partitioning the primitives. The split axis is chosen as the axis that results in the smallest bounding box heuristic among the three axes (<code>X</code>, <code>Y</code>, <code>Z</code>). The bounding box heuristic is calculated based on the surface area of the child bounding boxes after splitting and the primitives are partitioned into left and right child nodes based on the chosen split axis and the average centroid.
+			</p>
+
+			<p>
+				We chose to use the mean position as the split point instead of the median because we would have to sort the primitives along each axis first. Adding the sort step in the recursion increases the time for generating the BVH. Additionally, a general ray-tracer should work well without prior information about the 3D distribution of primitives so we can assume that for an arbitrary scene, the probability of finding a primitive at any point 3D space follows a uniform distribution so the mean centroild location and median centroid location across the axes are approximately equal.
+			</p>
+
+			<p>
+				<code>left_primitives</code> and <code>right_primitives</code> are used to store primitives on the left and right sides of the split axis which are then redistributed into the left and right vectors based on their centroid positions along the split axis. Within the loop, if the index <code>i</code> is less than the size of the <code>left_primitives</code> vector, it means there are still primitives left to be assigned to the left child node. If <code>i</code> exceeds the size of the <code>left_primitives</code> vector, it means all left primitives have been assigned, and the remaining primitives need to be assigned to the right child node. 
+			</p>
+
+			<p>
+				Recursive calls to <code>construct_bvh</code> are made to construct the left and right child nodes. For the left child node, the range of primitives is from <code>start</code> to the iterator <code>center_left</code> and for the right child node, the range is from <code>center_left</code> to <code>end</code>.
+			</p>
+
+			<p>
+				The images below show how utilizing a 3-axis heuristic is better than splitting along only the mean x-coordinate. The bounding boxes encapsulate the primitives more tightly which reduces the probability that a ray hits the bounding box of a BVH without hitting a primitive.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/2.1-base-rendering.png" width="100%" />
+					<p>
+						<code>../dae/meshedit/cow.dae</code>, base rendering
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/2.1-desc-1.png" width="100%" />
+					<p>
+						<code>../dae/meshedit/cow.dae</code>, descending once to right child
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/2.1-desc-2.png" width="100%" />
+					<p>
+						<code>../dae/meshedit/cow.dae</code> descending twice 
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/2.1-desc-3.png" width="100%" />
+					<p>
+						<code>../dae/meshedit/cow.dae</code> descending three times
+					</p>
+				 </div>
+			</div>
+		<hr>
+
+		<h3 align="middle">Task 2: Intersecting the Bounding Box</h3>
+		<hr>
+			<p>
+				Implementing <code>BBox::intersect</code> utilizes the given ray and axis-aligned plane intersection and ray and axis-aligned box intersection equations to check whether a ray intersects a given bounding box.
+			</p>
+
+			<p>
+				Time is represented as \( t = \frac{{p_x' - o_x}}{{d_x}} \) when perpendicular to the x axis. Intersection times (<code>t</code>) are calculated for each axis using the parametric equation of a ray, where \( t = \frac{{p[\text{axis}] - o[\text{axis}]}}{{d[\text{axis}]}} \). This equation represents the intersection of the ray with each of the bounding box's six planes along the <code>X</code>, <code>Y</code>, and <code>Z</code> axes. The minimum and maximum intersection times (<code>min_t</code> and <code>max_t</code>) are calculated for each axis which represent the entry and exit points of the ray into and out of the bounding box along each axis. Specifically, the interval of intersection is determined by taking the maximum of the minimum intersection times (<code>min_t</code>) across all axes and the minimum of the maximum intersection times (<code>max_t</code>) across all axes, ensuring that the intersection interval is as tight as possible.
+			</p>
+
+			<p>
+				If the max of <code>min_t</code> is greater than the min of <code>max_t</code>, it indicates that the ray misses the bounding box along at least one axis which is why we return false (no intersection). Otherwise, <code>t0</code> and <code>t1</code> are updated directly if an intersection is found within the provided range and we return true. 
+			</p>
+		<hr>
+
+		<h3 align="middle">Task 3: Intersecting the BVH</h3>
+		<hr>
+			<p>
+				The following times were collected by calling <code>./pathtracer -t 8 -r 800 600 -f {filename}.png ../dae/{path to file}.dae</code> with and without BVH acceleration.
+			</p>
+
+			<table>
+				  <tr>
+					    <th>File</th>
+					    <th>Without BVH Acceleration</th>
+					    <th>With BVH Acceleration</th>
+				  </tr>
+				  <tr>
+					    <td><code>../dae/sky/dragon.dae</code></td>
+					    <td>114.1280 seconds</td>
+					    <td>0.027 seconds</td>
+				  </tr>
+				  <tr>
+					    <td><code>../dae/sky/CBbunny.dae</code></td>
+					    <td>31.9542 seconds</td>
+					    <td>0.0211 seconds</td>
+				  </tr>
+				  <tr>
+					    <td><code>../dae/sky/CBlucy.dae</code></td>
+					    <td>50.7390 seconds</td>
+					    <td>0.0490 seconds</td>
+				  </tr>
+				  <tr>
+					    <td><code>../dae/meshedit/maxplanck.dae</code></td>
+					    <td>144.7978 seconds</td>
+					    <td>0.0375 seconds</td>
+				  </tr>
+			</table>
+
+			<br><br>
+
+			<table>
+				  <tr>
+					    <th>File</th>
+					    <th>Intersection Tests Per Ray (Without BVH)</th>
+					    <th>Intersection Tests Per Ray (With BVH)</th>
+				  </tr>
+				  <tr>
+					    <td><code>../dae/sky/dragon.dae</code></td>
+					    <td>26331.172812 tests per ray</td>
+					    <td>13.020385 tests per ray</td>
+				  </tr>
+				  <tr>
+					    <td><code>../dae/sky/CBbunny.dae</code></td>
+					    <td>5180.986541 tests per ray</td>
+					    <td>14.620026 tests per ray</td>
+				  </tr>
+				  <tr>
+					    <td><code>../dae/sky/CBlucy.dae</code></td>
+					    <td>67920.405738 tests per ray</td>
+					    <td>10.578069 tests per ray</td>
+				  </tr>
+				  <tr>
+					    <td><code>../dae/meshedit/maxplanck.dae</code></td>
+					    <td>9767.330203 tests per ray</td>
+					    <td>13.643585 tests per ray</td>
+				  </tr>
+			</table>
+
+			<p>
+				With BVH acceleration, the computational efficiency is significant. For example, the <code>../dae/sky/dragon.dae</code> rendering completed after 0.027 seconds with BVH acceleration while it took 114.1280 seconds without BVH acceleration. Resepectively, there were 26331.172812 intersection tests per ray without BVH acceleration and 13.020385 intersection tests per ray with BVH aceleration showcasing how without using BVH acceleration, the average number of intersection tests per ray is <code>O(n)</code> and with BVH acceleration is <code>O(log n)</code> where <code>n</code> is the number of primitives in the scene.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/maxplanck-2.3.png" width="100%" />
+					<p>
+						<code>../dae/meshedit/maxplanck.dae</code> after BVH acceleration
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/cbbunny.dae-2.3.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code> after BVH acceleration
+					</p>
+				 </div>
+			</div>
+
+			<br><br>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/cblucy.dae-2.3.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBlucy.dae</code> after BVH acceleration
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/dragon.dae-2.3.png" width="100%" />
+					<p>
+						<code>../dae/sky/dragon.dae</code> after BVH acceleration
+					</p>
+				 </div>
+			</div>
+		<hr>
+
+		<h2 align="middle">Part 3: Direct Illumination</h2>
+			
+		<h3 align="middle">Task 1: Diffuse BSDF</h3>
+		<hr>
+			<p>
+				<code>DiffuseBSDF::f</code> represents a diffuse material that reflects incoming light equally in all directions on the hemisphere. Originally, we returned the <code>reflectance</code> of the <code>DiffuseBSDF</code> but this didn't match the image in spec. The surface area of a unit hemisphere is \(2 \times \pi\) and based off of lecture slides, the integral of cosine over hemisphere is only <code>1/2</code> the area of the hemisphere, thus why we chose to divide <code>reflectance</code> by \( \pi \) and resulted in the correct matching image.
+			</p>
+		<hr>
+
+		<h3 align="middle">Task 2: Zero-bounce Illumination</h3>
+		<hr>
+		<p>
+			To implement zero-bounce illumination, we obtained the <code>Intersection</code> object's <code>bsdf</code> attribute and called <code>get_emission()</code> to get the emission value of the surface material (light that results from zero bounces of light). Afterwards, we updated <code>est_radiance_global_illumination</code> to utilize this method and generate the following image when running <code>./pathtracer -t 8 -s 16 -l 8 -m 6 -H -f CBbunny_16_8.png -r 480 360 ../dae/sky/CBbunny.dae</code>.
+		</p>
+		
+		<div style="text-align: center;">
+			<img src="images/3.2-cornell-box.png" width="50%" />
+			<p><code>../dae/sky/CBbunny.dae</code> with zero-bounce illumination</p>
+		</div>
+		<hr>
+
+		<h3 align="middle">Task 3: Direct Lighting with Uniform Hemisphere Shading</h3>
+		<hr>
+
+			<p>
+				With uniform hemisphere shading, we first iterated through <code>num_samples</code> samples by sampling a <code>new_sample</code> vector from the hemisphere after using <code>hemisphereSampler</code>. We calculated its world-space coordinates by multiplying it with <code>o2w</code> and created a new sample <code>Ray</code> (<code>new_ray</code>) with the new origin and direction. We made sure to also set <code>new_ray</code>'s <code>min_t</code> to <code>EPS_F</code>.
+			</p>
+
+			<p>
+				Afterwards, we created a new <code>Intersection</code> labeled <code>new_isect</code> and checked whether the bounding volume hierarchy intersected the sampled <code>Ray</code> by calling <code>intersect</code> — the output returned was stored in a <code>Boolean</code> variable named <code>is_intersected</code>.
+			</p>
+
+			<p>
+				If there was an intersection, we calculated the <code>L_i</code>, <code>f_r</code>, \( \cos(\theta_j) \), and <code>pdf</code> values within the reflection equation to get the outgoing lighting. For <code>L_i</code>, this was simply obtaining the emission of the intersection's BSDF. To obtain <code>f_r</code> (<code>f_result</code>), we used the function we wrote in Task 1 to calculate the BSDF. Earlier, we calculated \( \cos(\theta_j) \) by finding the dot product between the surface normal of the intersection and the world-space unis of the ray. The <code>pdf</code> is the probability of sampling any point uniformly which is \( \frac{1}{{2 \pi}} \).
+			</p>
+
+			<p>
+				We created <code>final_sample</code>, which essentially helped us add \( \frac{{L_i \times f_r \times \cos(\theta_j)}}{{\text{pdf}}} \) to \( L_{\text{out}} \) for each sample Ray. After all iterations, we normalized <code>L_out</code> by dividing by <code>num_samples</code>.
+			</p>
+
+			<p>
+				Below are images of running <code>./pathtracer -t 8 -s 16 -l 8 -H -f CBbunny_H_16_8.png -r 480 360 ../dae/sky/CBbunny.dae</code>, <code>./pathtracer -t 8 -s 64 -l 32 -m 6 -H -f CBbunny_H_64_32.png -r 480 360 ../dae/sky/CBbunny.dae</code> and <code>./pathtracer -t 8 -s 64 -l 32 -m 6 -H -f CBempty.png -r 480 360 ../dae/sky/CBspheres_lambertian.dae</code> with uniform hemisphere sampling.
+			</p>
+		
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/CBbunny_H_16_8-3.3.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code> 16 camera rays per pixel, 8 samples per pixel, uniform hemisphere sampling
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/CBbunny_H_64_32-3.3.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code> 64 camera rays per pixel, 32 samples per pixel, uniform hemisphere sampling
+					</p>
+				 </div> 
+			</div>
+
+			<br><br>
+
+			<div style="text-align: center;">
+				<img src="images/CBspheres_lambertian-3.3.png" width="50%" />
+				<p>
+					<code>../dae/sky/CBspheres_lambertian.dae</code>
+				</p> 
+			</div>
+
+		<hr>
+
+		<h3 align="middle">Task 4: Direct Lighting by Importance Sampling Lights</h3>
+		<hr>
+			<p>
+				Importance sampling is similar to uniform hemisphere sampling with the exception of now iterating through all the lights via <code>scene->lights.begin()</code>. First, we need to check whether <code>is_delta_light()</code> returns true if the light is a point light source. This is because if we sample a point light source, the ray's direction doesn't matter since the outgoing light is the same, hence why only one sample is needed. Otherwise, <code>num_samples</code> is equal to <code>ns_area_light</code>. 
+			</p>
+
+			<p>
+				While still iterating through the lights, we now need to iterate through all of the samples for that light. We created a new vector <code>L</code> assigned to the output of calling <code>sample_L</code>, which also sets <code>wi</code>, <code>distToLight</code> and <code>pdf</code>. Following the same steps in uniform hemisphere sampling, we generated a new sample <code>Ray</code> (<code>new_ray</code>) and set it's <code>min_T</code> and <code>max_T</code> values to <code>EPS_F</code> and <code>dist - EPS_F</code> respectively. Afterwards, we created a new <code>Intersection</code> and checked if there was an intersection by using <code>intersect</code>. 
+			</p>
+
+		    	<p>
+			    	If there isn't an intersection, we calculated the \( f_r \) to compute the reflection equation to get the outgoing lighting. This is because if there was an intersection, we don't want to illuminate it because of the previous intersection. We added \( \frac{{L_i \times f_r \times \cos(\theta_j)}}{{\text{pdf}}} \) to \( L_{\text{out}} \) and after iterating through all of the samples per light, we normalized the outgoing light by dividing by \( \text{num_samples} \). This was then added to \( \text{result} \) (final \( L_{\text{out}} \)) and returned.
+		    	</p>
+
+			<p>
+				Below are images generated when running <code>./pathtracer -t 8 -s 64 -l 32 -m 6 -f {filename}.png -r 480 360 ../dae/sky/{filename}.dae</code> for importance sampling lights.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/bunny_1_1-3.4.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code>, 1 sample per pixel
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/bunny_64_32-3.4.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code>, 64 samples per pixel
+					</p> 
+				 </div>
+			</div>
+
+			<br><br>
+
+			<div style="text-align: center;">
+				<img src="images/dragon_64_32-3.4.png" width="50%" />
+				<p><code>../dae/sky/dragon.dae</code></p>
+			</div>
+		
+			<p>
+				Using light importance sampling, we can also compare the noise levels in soft shadows when rendering with 1, 4, 16, and 64 light rays (the <code>-l</code> flag) and 1 sample per pixel (the <code>-s</code> flag) for <code>../dae/sky/CBbunny.dae</code>. When there are more light rays, we can see that there is less noise in the rendered images. The shadows become more smooth and the edges are less rigid because with less light rays, each shadow point is clearer. With more light rays, there is a greater range, allowing for more variation in the shadows.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/CBbunny-sample1.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code>, 1 light ray
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/CBbunny-sample4.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code>, 4 light rays
+					</p>
+				 </div>
+			</div>
+
+			<br>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/CBbunny-sample16.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code>, 16 light rays
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/CBbunny-sample64.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code>, 64 light rays
+					</p>
+				 </div>
+			</div>
+
+			<h2>
+				Uniform Hemisphere Sampling vs Light Sampling
+			</h2>
+
+			
+
+			<p>
+				As seen in the images below, lighting sampling results in smoother and sharper images whereas uniform hemisphere sampling results in grainier/noisier images. This is a result of uniform hemisphere sampling taking samples in different directions around a given point, thus causing some areas to be darker/grainer. Lighting sampling samples from the light source - samples that actually affect the final lighting. By doing this, we remove noise because not all samples of hemisphere sampling were not in the direction of the light source.
+			</p>
+		
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<h3><u>Uniform Hemisphere Sampling</u></h3>
+					<img src="images/CBbunny_H_64_32-3.3.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code> with uniform hemisphere sampling
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<h3><u>Direct Lighting Sampling</u></h3>
+					<img src="images/bunny_64_32-3.4.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBbunny.dae</code> with direct lighting sampling
+					</p>
+				 </div>
+
+			</div>
+
+			<br>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/direct-lighting-uniform-spheres-3.3.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBlambertian_spheres.dae</code> with uniform hemisphere sampling
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/direct-lighting-spheres-3.4.png" width="100%" />
+					<p>
+						<code>../dae/sky/CBlambertian_spheres.dae</code> with direct lighting sampling
+					</p>
+				 </div>
+			</div>
+
+			
+		<hr>
+
+		<h2 align="middle">Part 4: Global Illumination</h2>
+		<hr>
+			
+		<h3 align="middle">Task 1: Sampling with Diffuse BSDF</h3>
+		<h3 align="middle">Task 2: Global Illumination with up to N Bounces of Light</h3>
+		<h3 align="middle">Task 3: Global Illumination with Russian Roulette</h3>
+
+		<hr>
+		<!-- Walk through your implementation of the indirect lighting function.
+		Show some images rendered with global (direct and indirect) illumination. Use 1024 samples per pixel.
+		Pick one scene and compare rendered views first with only direct illumination, then only indirect illumination. Use 1024 samples per pixel. (You will have to edit PathTracer::at_least_one_bounce_radiance(...) in your code to generate these views.)
+		For CBbunny.dae, compare rendered views with max_ray_depth set to 0, 1, 2, 3, and 100 (the -m flag). Use 1024 samples per pixel.
+		Pick one scene and compare rendered views with various sample-per-pixel rates, including at least 1, 2, 4, 8, 16, 64, and 1024. Use 4 light rays.
+		You will probably want to use the instructional machines for the above renders in order to not burn up your own computer for hours. -->
+
+		<h3>
+			Walk through your implementation of the indirect lighting function.
+		</h3>
+		<p>
+			The purpose of indirect lighting is to take into account the reflecting light at a certain point from other objects instead of exclusively light sources. In our implementation, we updated <code>est_radiance_global_illumination</code> to return <code>L_out</code> as the sum of the calls to <code>zero_bounce_radiance</code> and <code>at_least_one_bounce_radiance</code>. Based on the spec, we also changed the camera ray's depth to be <code>max_ray_depth</code>.
+		</p>
+
+		<p>
+			If the ray's depth is equal to 0, we just return <code>Vector3D(0, 0, 0)</code>. Otherwise, if the ray's depth is greater than 1, we recursively call <code>one_bounce_radiance</code> when tracing backwards through the incoming light vectors. We generate a sample Ray from <code>hit_p</code> and <code>ray_dir</code> (<code>o2w * w_in</code>). We set the ray's <code>min_t</code> to <code>EPS_F</code> and the <code>max_t</code> to <code>r.depth - 1</code> as outlined in the spec. This enables us to be able to decrement the <code>depth</code> for each bounce performed.
+		</p>
+
+		<p>
+			We check whether nodes in our BVH intersect the sample ray and if so, we calculate <code>new_L</code> (\( L_i\)) which is a recursive call to <code>at_least_one_bounce_radiance</code> and we also calculate \( \cos(\theta_j)\). Each intersection is scaled by the appropriate lambert term and <code>pdf</code> (and <code>cdf</code> for Russian Roulette). We accumulate <code>L_out</code> as \( \frac{{L_i \times f_r \times \cos(\theta_j)}}{{\text{pdf}}} \) and return it at the end.
+		</p>
+
+		<p>
+			Each intersection is scaled by the appropriate lambert term and <code>pdf</code> (and <code>cdf</code> for Russian Roulette). If an intersection isn't found, we just return the radiance at the current iteration and pop back up. We recurse until the maximum ray depth or if Russian Roulette is enabled, it would terminate with a 0.35 chance. 
+		</p>
+
+		<p>
+			To account for non-accumulated bounces, if <code>isAccumBounces = false</code>, we only add the outgoing light for the last bounce and for other bounces, we return <code>Vector3D(0, 0, 0)</code>. Within our code, if <code>isAccumBounces</code> is true, we add <code>one_bounce_radiance</code> to <code>L_out</code>, representing us hitting the last bounce or if the ray's depth is one. If there is an intersection and <code>isAccumBounces = false</code>, we don't accumulate to <code>L_out</code> but instead set <code>L_out</code> equal to \( \frac{{L_i \times f_r \times \cos(\theta_j)}}{{\text{pdf}}} \).
+		</p>
+
+		<p>For Russian Roulette, when the ray's depth is greater than 1, we take a <code>coin_flip</code> and pass in a probability of 0.65 since our termination probability is 0.35. If the <code>coin_flip</code> is true, we recurse.</p>
+
+		<br>
+		
+		<h3>
+			Show some images rendered with global (direct and indirect) illumination. Use 1024 samples per pixel.
+		</h3>
+		<!-- Example of including multiple figures -->
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBspheres-global.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code> with global illumination
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny-global.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae</code> with global illumination
+				</p>
+			 </div>
+		</div>
+		<br>
+		
+		<h3>
+			Pick one scene and compare rendered views first with only direct illumination, then only indirect illumination. Use 1024 samples per pixel. (You will have to edit PathTracer::at_least_one_bounce_radiance(...) in your code to generate these views.)
+		</h3>
+		<!-- Example of including multiple figures -->
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBspheres-direct.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code> with only direct illumination
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBspheres-indirect.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae</code> with only indirect illumination
+				</p>
+			 </div>
+		</div>
+		<br>
+		<p>
+			Direct illumination consists of zero-bounce and one-bounce illumination, whereas indirect illumination incorporates two or more bounces.
+		</p>
+		<br>
+		
+		<h3>
+			For CBbunny.dae, render the mth bounce views of light with max_ray_depth set to 0, 1, 2, 3, 4, and 5 (the -m flag). Also compare rendered views with accumulation on, with max_ray_depth set to 0, 1, 2, 3, and 5 (the -m flag). Use 1024 samples per pixel.
+		</h3>
+		<!-- Example of including multiple figures -->
+		<div style="display: flex; justify-content: space-between;">
+					
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<h3><u>No Accumulation</u></h3>
+				<img src="images/CBbunny m=0 o=0.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae</code>, zero bounces of light
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<h3><u>With Accumulation</u></h3>
+				<img src="images/CBbunny m=0 o=1.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae</code>, zero bounces of light
+				</p>
+			 </div>
+
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny m=1 o=0.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, one bounce of light
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny m=1 o=1.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, one bounce of light
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny m=2 o=0.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, two bounces of light
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny m=2 o=1.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, two bounces of light
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny m=3 o=0.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, three bounces of light
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny m=3 o=1.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, three bounces of light
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny m=4 o=0.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, four bounces of light
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny m=4 o=1.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, four bounces of light
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny m=5 o=0.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, five bounces of light
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny m=5 o=1.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, five bounces of light
+				</p>
+			 </div>
+		</div>
+
+		<br>
+		<p>
+			Based on the images above, we are able to see that adding bounces of light with global illumination causes images to look more "realistic" since shadows (complex and diffuse) and colors are displayed more evidently in the iamges. We can see that between the second and third bounce of light, the image gets substantially darker. This is because after the second bounce, the light has dissipated. There is still a bit of light around the bunny's legs because after the second bounce of light, light that hits the ground would hit the bunny's legs. Subsequent bounces only light the edges of the floor and slightly under the bunny. The decreased light can also be a result of absorption from the walls.
+		</p>
+		<br>
+
+		<h3>
+			Pick one scene and compare rendered views with various sample-per-pixel rates, including at least 1, 2, 4, 8, 16, 64, and 1024. Use 4 light rays.
+		</h3>
+		<!-- Example of including multiple figures -->
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBspheres1.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, 1 sample per pixel, 4 light rays
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBspheres2.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, 2 samples per pixel, 4 light rays
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBspheres4.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, 4 samples per pixel, 4 light rays
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBspheres8.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, 8 samples per pixel, 4 light rays
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBspheres16.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, 16 samples per pixel, 4 light rays
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBspheres64.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, 64 samples per pixel, 4 light rays
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="text-align: center;">
+			<img src="images/CBspheres1024.png" width="50%" />
+			<p><code>../dae/sky/CBlambertian_spheres.dae</code>, 1024 samples per pixel, 4 light rays</p>
+		</div>
+
+		<p>
+			Based on the images above, we can see that with a greater pixel sampling rate, the bunny image gets less grainier/noisy and becomes clearer and smoother. This is a result of higher sampling rates which eliminates noise.
+		</p>
+		<br>
+
+		<h3>
+			For <code>CBbunny.dae</code>, compare rendered views with accumulation on, while using Russian Roulette, with <code>max_ray_depth</code> set to 0, 1, 2, 3, and 100 (the -m flag). Use 1024 samples per pixel.
+		</h3>
+		<!-- Example of including multiple figures -->
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny-rrM0.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae, max_ray_depth = 0</code> with Russian Roulette
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny-rrM1.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae, max_ray_depth = 1</code> with Russian Roulette
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny-rrM2.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae, max_ray_depth = 2</code> with Russian Roulette
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny-rrM3.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae, max_ray_depth = 3</code> with Russian Roulette
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny-rrM4.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae, max_ray_depth = 4</code> with Russian Roulette
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny-rrM100.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae, max_ray_depth = 100</code> with Russian Roulette
+				</p>
+			 </div>
+		</div>
+		<p>
+			The purpose of Russian Roulette is to allow for unbiased termination in the recursive model for outgoing light at different bounces. With Russian Roulette implemented, the images are brighter with increased color bleeding in the shadows and maximum ray depth. However, we noticed that there isn't a significant difference between <code>max_ray_depth = 4</code> and <code>max_ray_depth = 100</code>. This is most likely a result of Russian Roulette random termination since there is a 0.3 probability of termination at each level of recursion, indicating that the image probably didn't reach 100 levels of bounces.
+		</p>
+
+		<br>
+
+		<hr>
+		<h2 align="middle">Part 5: Adaptive Sampling</h2>
+		<hr>
+		<!-- Explain adaptive sampling. Walk through your implementation of the adaptive sampling.
+		Pick one scene and render it with at least 2048 samples per pixel. Show a good sampling rate image with clearly visible differences in sampling rate over various regions and pixels. Include both your sample rate image, which shows your how your adaptive sampling changes depending on which part of the image you are rendering, and your noise-free rendered result. Use 1 sample per light and at least 5 for max ray depth. -->
+
+		<h3>
+			Explain adaptive sampling. Walk through your implementation of the adaptive sampling.
+		</h3>
+		<p>
+			The purpose of adaptive sampling is to decrease the number of samples per pixel (per pixel basis) which makes the Monte Carlo path tracing more efficient. This is done by checking if a pixel has a variance within an acceptable range. If so, sampling will be terminated there. Ultimately, it concentrates samples in areas that are more difficult to render.
+		</p>
+
+		<p>
+			This builds off of what we did in Part 1 Task 2. As noted in the spec, we want \( I \leq \text{maxTolerance} \times \mu \) where \( \mu = 1.96 \times \left(\frac{{\text{SD}}}{{\sqrt{n}}}\right) \). \(\mu\) represents the current mean illuminance, and \(SD\) is the standard deviation of the illuminances for the samples that have already been taken. We don't need to keep track of every sample's illuminance - we just keep track of \( s_1 = \sum_{k=1}^{n} x_k \) and \( s_2 = \sum_{k=1}^{n} x_k^2 \). This allows us to recover \(\mu = \frac{{s_1}}{n} \) and \(\sigma^2 = \frac{1}{{n-1}} \times \left(s_2 - \frac{{s_1^2}}{n}\right) \).
+		</p>
+
+		<p>
+			Mainly where iterating through <code>num_samples</code> times, we check whether <code>adaptive_num_samples</code> (index <code>i</code>) is a multiple of <code>samplesPerBatch</code>. If so, we perform a convergence check which is elaborated above and in the spec. When \( I \leq \text{maxTolerance} \times \mu \), we can assume that the pixel has converged, allowing us to stop tracing more rays. However, if the pixel hasn't converged, we obtain a sample and normalize the sample within the pixel. We do this by generating a Ray and calling <code>est_radiance_global_illumination</code> to add to <code>vec_sum</code> (overall pixel's radiance). We add to <code>s1</code> and the squared value to <code>s2</code>. Once the iteration is complete, we normalize the pixel's average radiance (<code>vec_sum</code>), call <code>update_pixel</code>, and update <code>sampleCountBuffer</code>.
+		</p>
+		<br>
+		
+		<h3>
+			Pick two scenes and render them with at least 2048 samples per pixel. Show a good sampling rate image with clearly visible differences in sampling rate over various regions and pixels. Include both your sample rate image, which shows your how your adaptive sampling changes depending on which part of the image you are rendering, and your noise-free rendered result. Use 1 sample per light and at least 5 for max ray depth.
+		</h3>
+		<!-- Example of including multiple figures -->
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBbunny-part5-rendered.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae</code>, rendered image
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBbunny_rate-part5.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBbunny.dae</code>, sample rate image
+				</p>
+			 </div>
+		</div>
+
+		<br>
+
+		<div style="display: flex; justify-content: space-between;">
+			<div style="flex: 1; margin-right: 10px; text-align: center;">
+				<img src="images/CBspheres-part5-rendered.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, rendered image
+				</p>
+			</div>
+			<div style="flex: 1; margin-left: 10px; text-align: center;">
+				<img src="images/CBspheres_rate-part5.png" width="100%" />
+				<p>
+					<code>../dae/sky/CBlambertian_spheres.dae</code>, sample rate image
+				</p>
+			 </div>
+		</div>
+		
+		<p>
+			We notice that the red color represents high sampling rates while the blue color represents low sampling rates. 
+		</p>
+	</div>
+</html>

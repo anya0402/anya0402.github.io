@@ -1,0 +1,1087 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<style>
+		body {
+			padding: 100px;
+			width: 1000px;
+			margin: auto;
+			text-align: left;
+			font-weight: 300;
+			font-family: 'Nunito', sans-serif;
+			color: #121212;
+			background-color: #fae3e4
+		}
+		h1, h2, h3, h4 {
+			font-family: 'Nunito', sans-serif;
+		}
+		blockquote {
+			color: #888;
+			border: 2px solid #b8bd3c;
+			padding: 10px;
+			background-color: #f5facf;
+		}
+
+		table.custom-tbl {
+			border: 1px solid;
+		}
+
+		table.custom-tbl th {
+			border: 1px solid;
+			background-color: rgb(99, 209, 209);
+		}
+
+		table.custom-tbl td {
+			border: 1px solid;
+			background-color: #f1e686a8;
+		}
+		</style>
+
+		<hr>
+		<title>CS 184 Mesh Editor</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<link href=https://fonts.googleapis.com/css?family=Nunito rel="stylesheet">
+		<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+	</head>
+
+
+	<body>
+
+		<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2024</h1>
+		<h1 align="middle">Project 4: Cloth Simulator</h1>
+		<h2 align="middle">Christy Quang, Anya Agarwal</h2>
+		<hr>
+		<!-- Add Website URL -->
+		<h2 align="middle">Website URL: <a href="https://cal-cs184-student.github.io/hw-webpages-sp24-christyquang/hw4/index.html">Here</a></h2>
+
+		<div style="text-align: center;">
+			<img src="images/p3-ks=500-normal.png" width="50%" />
+			<p><code>simulated cloth on sphere</code></p>
+		</div>
+		<br>
+
+		<div>
+
+			<hr>
+			<h2 align="middle">Overview</h2>
+			<hr>
+			<p>
+				The goal of this project is to build a cloth simulator using a mass and spring system. We implement everything from the actual creation of the cloth to its real-time movement to collisions with other objects. The cloth itself is made up of a mass and spring system, and we use numerical integration to simulate the actual movement of the cloth. From there we could move further into creating a realistic cloth simulator by handling collisions, with a sphere, a plane, and itself. The self collisions allow for the cloth to realistically fall and fold onto itself, while the sphere collision allows us the view the cloth and its properties as it is draped over something. The sphere collision proved extremely helpful in the last part of this project, which was creating shaders to model different textures on the cloth. We created these shaders using the language GLSL, and we used Blinn-Phong shading to create a more realistic look for the cloth. We also added additional shaders to add even more detail to the cloth, such as bump and displacement shaders, which add a 3D texture to the otherwise flat cloth.
+			</p>
+
+			<p>
+				Overall, it was extremely cool to see the final product of the cloth simulation, and how realistic it looks especially after we add the different shaders. We ran into quite a few difficulties implementing the physics of the cloth itself, such as with the movement simulation and the self-collisions, but it was very fascinating to see how it all came together in the end.
+			</p>
+
+			<hr>
+			<a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-1">
+				<h2 align="middle">Part 1: Masses and springs</h2>
+			</a>
+			<hr>
+			
+			<blockquote><b>
+				Take some screenshots of <i>scene/pinned2.json</i> from a viewing angle where you can clearly see the cloth wireframe 
+				to show the structure of your point masses and springs. 
+			  </b></blockquote>
+
+			<p>
+				The goal of this section was to create a grid of masses and springs. First, we iterated through <code>num_height_points</code> and <code>num_width_points</code> via an inner loop to generate the point masses in row-major order, alongside the masses being evenly spaced. Based on the orientation (horizontal or vertical), we varied across the <code>xy</code> plane or the <code>xz</code> plane. If the point mass's <code>(x, y)</code> index is within the cloth's <code>pinned</code> vector, we set the point mass's <code>pinned</code> boolean to <code>true</code>. The <code>pinned</code> boolean indicates whether the point mass will remain stationary/pinned throughout the simulation.
+			</p>
+
+			<p>
+				After creating the grid of point masses, we needed to create springs to apply the structural, shear, and bending constraints between point masses. These are the restraints indicating what constraints would be applied:
+			</p>
+
+			<ul>
+				<li>
+					Structural: A point mass and the point mass to its left + the point mass above it
+				</li>
+				<li>
+					Shearing: A point mass and the point mass to its diagonal upper left + the point mass to its diagonal upper right.
+				</li>
+				<li>
+					Bending: A point mass and the point mass two away to its left + the point mass two above it
+				</li>
+			</ul>
+
+			<p>
+				Below are images of the entire grid zoomed out and zoomed in when running <code>./clothsim -f ../scene/pinned2.json</code> with initial configurations of <code>ks = 5,000</code>:
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+					
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p1-entiregrid.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, entire grid
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p1-entiregrid-zoom.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, entire grid zoomed
+					</p>
+				 </div>
+			</div>
+
+			<p>
+				Below, we can see images of the grid with the different constraints applied:
+			</p>
+
+			<blockquote><b>
+				Show us what the wireframe looks like (1) without any shearing constraints, 
+				(2) with only shearing constraints, and (3) with all constraints.
+			  </b></blockquote>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p1-without-shearing.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, without shearing constraints
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p1-with-shearing.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, with only shearing constraints
+					</p>
+				 </div>
+			</div>
+
+			<div style="text-align: center;">
+				<img src="images/p1-with-all.png" width="50%" />
+				<p><code>../scene/pinned2.json</code>, with all constraints</p>
+			</div>
+
+
+			<br>
+
+			<hr>
+			<a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-2">
+				<h2 align="middle">Part 2: Simulation via numerical integration</h2>
+			</a>
+			<hr>
+
+			<h3 align="middle">Task 1: Compute total force acting on each point mass</h3>
+			<hr>
+
+			<p>
+				In this task, we first calculated the external forces done by looping through the <code>external_accelerations</code>. All accelerations are applied uniformly so we summed all of the <code>external_forces</code> (a <code>Vector3D</code>) using Newton's 2nd Law (\(F = ma\)). Afterwards, we looped through all of the point masses and set each <code>forces</code> to <code>external_force</code>.
+			</p>
+
+			<p>
+				Next, we needed to apply the spring correction forces using Hooke's Law, \(F_s = k_s * (||p_a - p_b|| - l)\). For each spring, we apply \(F_s\) force to the point mass on one end and then an equal, but negated force on the other end. Bending constraints should be weaker than the other two constraints which is why we multiplied \(k_s * 0.2\).
+			</p>
+
+			<hr>
+			<h3 align="middle">Task 2: Use Verlet integration to compute new point mass positions</h3>
+			<hr>
+
+			<p>
+				In this task, we compute a point mass's new position by using Verlet integration on all unpinned point masses. The new position is calculated by \(x_{t+dt} = x_t + (1 - d) * (x_t - x_{t-dt}) + a_t * dt^2\). We also needed to update the point mass's <code>last_position</code> to the previous position prior to using Verlet integration.
+			</p>
+
+			<hr>
+			<h3 align="middle">Task 3: Constrain position updates</h3>
+			<hr>
+
+			<blockquote><b>
+				Experiment with some the parameters in the simulation. 
+				To do so, pause the simulation at the start with <kbd>P</kbd>, modify the values of interest, and then resume by pressing <kbd>P</kbd> again. 
+				You can also restart the simulation at any time from the cloth's starting position by pressing <kbd>R</kbd>.
+				<br>
+				<small>
+				Describe the effects of changing the spring constant <code>ks</code>; how does the cloth behave from start to rest with a very low <code>ks</code>? 
+				A high <code>ks</code>?
+				</small>
+			</b></blockquote>
+
+			<p>
+				To help keep springs from being unreasonably deformed during each time step, we implemented an additional feature based on the SIGGRAPH 1995 Provot paper on deformation constraints in mass-spring models. For each spring, we applied this constraint to prevent springs from extending more than 10% greater than its <code>rest_length</code> at the end of any time step.
+			</p>
+
+			<p>
+				If the spring's length doesn't extend more than 10% greater than its <code>rest_length</code>, we perform the following conditions to the point masses:
+			</p>
+
+			<ul>
+				<li>
+					Both point masses are pinned: Do nothing
+				</li>
+				<li>
+					One point mass is pinned: Correction entirely by the other point mass
+				</li>
+				<li>
+					Neither point masses are pinned: Correct by half to each point mass
+				</li>
+			</ul>
+
+			<p>
+				Below are images of running <code>./clothsim -f ../scene/pinned2.json</code> with the default parameters of <code>ks = 5000 N/m, density = 15 g/cm^2, damping = 0.2%</code> to help showcase how experimenting with parameters causes the cloth to change.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-finalresting-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned4.json</code>, final resting state, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-finalresting-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned4.json</code>, final resting state, normal
+					</p>
+				 </div>
+			</div>
+
+			<br>
+
+			<blockquote><b>
+				<small>
+				For each of the below observe any noticeable differences in the cloth compared to the default parameters 
+				and show us some screenshots of those interesting differences and describe when they occur.
+				</small>
+			</b></blockquote>
+
+			<h3>Changing <code>ks</code></h3>
+			
+			<p>
+				When maintaining the default parameters (<code>density</code>, <code>damping</code>) and only modifying the spring constant, <code>ks</code>, we can see that as <code>ks</code> increases, the cloth becomes less malleable. This is because increasing the spring constant results in increasing the spring's stiffness, causing the cloth to appear less "creased" and more rigid/flat. At lower <code>ks</code> values, the strength of the springs is lower, hence why the cloth is more flexible and has more folds/creases. 
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-ks=50-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>ks = 50 N/m</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-ks=50-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>ks = 50 N/m</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-ks=500-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>ks = 500 N/m</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-ks=500-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>ks = 500 N/m</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-ks=50000-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>ks = 50,000 N/m</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-ks=50000-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>ks = 50,000 N/m</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<h3>Changing <code>density</code></h3>
+			<p>
+				When maintaining the default parameters (<code>ks</code>, <code>damping</code>) and only modifying the <code>density</code>, we can see that its effect on the cloth is almost inversely to <code>ks</code> — increasing the <code>density</code> has similar results to the cloth as decreasing the <code>ks</code>. At lower <code>density</code> values, the cloth has lower mass. Using Newton's Second Law (\(F = ma\)), this means that the forces accumulated at each point mass will be less, causing less forces to pull the cloth down and ultimately resulting in less creases/folds in the cloth (more flat). At higher <code>density</code> values, the forces accumulated at each point mass are greater which is why there are more creases/folds in the cloth. 
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-density=1-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>density = 1 g/cm^2</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-density=1-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>density = 1 g/cm^2</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-density=50-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>density = 50 g/cm^2</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-density=50-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>density = 50 g/cm^2</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-density=500-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>density = 500 g/cm^2</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-density=500-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>density = 500 g/cm^2</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<h3>Changing <code>damping</code></h3>
+
+			<p>
+				When maintaining the default parameters (<code>ks</code>, <code>density</code>) and only modifying <code>damping</code>, we can immediately see that modifying <code>damping</code> impacts the speed at which the simulation/cloth reaches a state of rest. When <code>damping</code> is increased, this causes the cloth to stop its motion at a faster speed compared to a lower <code>damping</code> value. A higher <code>damping</code> causes the cloth to swing back and forth more rapidly. <code>damping</code> impacts the velocity value in Verlet integration so when <code>damping</code> is a lower value, there is no loss of energy, hence why the cloth rapidly swings. When <code>damping</code> is increased, the forces acting on the cloth are "dampened" and there is a loss of energy, hence why the cloth swings less rapidly. This is most evidently seen when comparing <code>damping = 1 g/cm^2</code> and <code>damping = 50000 g/cm^2</code>.
+			</p>
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-damping=0-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>damping = 0%</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-damping=0-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>damping = 0%</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-damping=1-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>damping = 1%</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-damping=1-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned2.json</code>, <code>damping = 1%</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<blockquote><b>
+				Show us a screenshot of your shaded cloth from <i>scene/pinned4.json</i> in its final resting state! 
+				If you choose to use different parameters than the default ones, please list them.
+			</b></blockquote>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p2-finalresting-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/pinned4.json</code>, final state (wireframe)
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p2-finalresting-normal.png" width="100%" />
+					<p>
+						<code>../scene/pinned4.json</code>, final state (normal)
+					</p>
+				 </div>
+			</div>
+
+			<br>
+
+			<hr>
+			<a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-3">
+				<h2 align="middle">Part 3: Handling collisions with other objects</h2>
+			</a>
+			<hr>
+
+			<h3 align="middle">Task 1: Handling collisions with spheres</h3>
+			<hr>
+
+			<p>
+				In this task, we handle collisions with spheres by registering when a collision "occurs" (depends on sphere vs. plane) and then calculate a correction to the point mass's current position so that it is just outside the surface of the object being collided into. A collision occurs when the point mass has a distance to the center of the sphere less than its radius. If a collision occurs, we calculate the tangent point along the sphere where the collision would have occured and use that value to calculate the correction vector. When updating the point mass's position, we make sure to scale by <code>1 - friction</code> when multiplying by the correction vector. We also needed to update <code>Cloth::simulate</code> to check for collisions between every <code>PointMass</code> and <code>CollisionObject</code>.
+			</p>
+
+			<blockquote><b>
+				Show us screenshots of your shaded cloth from <i>scene/sphere.json</i> in its final resting state 
+				on the sphere using the default <code>ks = 5000</code> as well as with <code>ks = 500</code> and <code>ks = 50000</code>. 
+			</b></blockquote>
+
+			<h3><code>ks = 5000 N/m (default)</code></h3>
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p3-ks=5000-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json, ks = 5000 N/m</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p3-ks=5000-normal.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json, ks = 5000 N/m</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<h3><code>ks = 50 N/m</code></h3>
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p3-ks=50-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json, ks = 50 N/m</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p3-ks=50-normal.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json, ks = 50 N/m</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<h3><code>ks = 500 N/m</code></h3>
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p3-ks=500-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json, ks = 500 N/m</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p3-ks=500-normal.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json, ks = 500 N/m</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<h3><code>ks = 50,000 N/m</code></h3>
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p3-ks=5000-wireframe.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json, ks = 50000 N/m</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p3-ks=50000-normal.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json, ks = 50000 N/m</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<blockquote><b>
+				<small>Describe the differences in the results.</small>
+			</b></blockquote>
+
+			<p>
+				We can see through the images below that when we increase <code>ks</code>, this results in increasing the stiffness of the spring. The cloth becomes more rigid and there is more structure to the folds. The material also goes from looking like velvet/silk to a stiffer material. This makes sense because a stiff spring will resist the deformation from gravity. In contrast, at lower <code>ks</code> values, the cloth is more flexible because of a weaker spring, hence why it appears more "loose" and drapes easier. This is especially prevalent when <code>ks = 50 N/m</code>, where the cloth resembles a thin hankerchief/napkin.
+			</p>
+
+			<hr>
+			<h3 align="middle">Task 2: Handling collisions with planes</h3>
+			<hr>
+
+			<p>
+				In this task, we handle collisions with planes - for a plane, a collision occurs when the point mass has crossed the plane. We determine if a point had crossed the plane by checking if the dot product of the movement vector and the normal vector is negative. If so, we apply a correction which uses the tangent point at which the collision between the point mass and the plane would have occurred. We also needed to factor in <code>SURFACE_OFFSET</code> when multiplying by the normal vector. The correction vector is also similar to collisions with a sphere. Lastly, we also needed to update <code>Cloth::simulate</code> to check for collisions between every <code>PointMass</code> and <code>CollisionObject</code>.
+			</p>
+
+			<blockquote><b>
+				Show us a screenshot of your shaded cloth lying peacefully at rest on the plane. 
+				If you haven't by now, feel free to express your colorful creativity with the cloth! 
+				(You will need to complete the shaders portion first to show custom colors.)
+			</b></blockquote>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p3-plane-wire.png" width="100%" />
+					<p>
+						<code>../scene/plane.json</code>, wireframe
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p3-plane-normal.png" width="100%" />
+					<p>
+						<code>../scene/plane.json</code>, normal
+					</p>
+				 </div>
+			</div>
+
+			<br>
+
+			<hr>
+			<a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-4">
+				<h2 align="middle">Part 4: Handling self-collisions</h2>
+			</a>
+			<hr>
+
+			<p>
+				Prior to this section, our cloth when colliding with itself would just clip through itself. To prevent this, we would need to implement that whenever the cloth fell on itself, it would fold. For each point mass, we need to check whether it is within some small number (<code>2 * thickness</code>) away from another point (not including itself). If it is too close, then we apply a correction/repulsive collision force (to maintain a minimum of <code>2 * thickness</code> distance away).
+			</p>
+
+			<hr>
+			<h3 align="middle">Task 1: <code>Cloth::hash_position</code></h3>
+			<hr>
+
+			<p>
+				In this task, we implemented <code>Cloth::hash_position</code> which takes in a point mass's position and calculates its 3D box volume's index in our spatial hash table. The idea is to check within a point's 3D box volume instead of throughout the entire cloth. This was done by first calculating its 3D position <code>(w, h, t)</code> where <code>w = 3 * width / num_width_points</code>, <code>h = 3 * height / num_height_points</code>, and <code>t = max(w, h)</code>. We determined the 3D box coordinates by calculating <code>x = (pos.x - fmod(pos.x, w))/w</code>, <code>y = (pos.y - fmod(pos.y, h))/h</code>, and <code>z = (pos.z - fmod(pos.z, t))/t</code>. Afterwards, we transformed the 3D position to 1D through our hash expression.
+			</p>
+
+			<hr>
+			<h3 align="middle">Task 2: <code>Cloth::build_spatial_map</code></h3>
+			<hr>
+
+			<p>
+				In this task, we constructed our spatial map by iterating through all <code>point_masses</code> in the cloth and calculated its <code>hash</code>. If there isn't already a <code>vector<PointMass *></code> at that position, a new one is initialized and we also <code>push_back</code> the current point mass. 
+			</p>
+
+			<hr>
+			<h3 align="middle">Task 3: <code>Cloth::self_collide</code></h3>
+			<hr>
+
+			<p>
+				In this task, we check each point mass to see whether the normalized distance between it and candidate point masses is less than <code>2 * thickness</code>. If a collision is detected, a correction vector is calculated based on the difference between the desired separation distance (<code>2 * thickness</code>) and the actual distance between the point masses.
+			</p>
+
+			<p>
+				If any corrections were calculated, the average correction vector is computed and the position of the given point mass is adjusted by adding the correction vector to it.
+			</p>
+
+			<p>
+				We also needed to update <code>Cloth::simulate</code> to build our spatial map and iterate through the point masses to call <code>self_collide</code> on them. 
+			</p>
+
+			<blockquote><b>
+				Show us at least 3 screenshots that document how your cloth falls and folds on itself, 
+				starting with an early, initial self-collision 
+				and ending with the cloth at a more restful state (even if it is still slightly bouncy on the ground).
+			</b></blockquote>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p4-1-selfcollision.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, early, initial self-collision
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p4-2-selfcollision.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, continuing to fall down
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p4-3-selfcollision.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, down with more folds
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p4-4-selfcollision.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code> unravelling
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p4-5-selfcollision.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, continuing to unravel itself
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p4-6-selfcollision.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, final resting state
+					</p>
+				 </div>
+			</div>
+
+			<blockquote><b>
+				Vary the <code>density</code> as well as <code>ks</code> 
+				and describe with words and screenshots how they affect the behavior of the cloth as it falls on itself.
+			</b></blockquote>
+
+			<h3>Changing <code>ks</code></h3>
+
+			<p>
+				When maintaining the default parameters (<code>density</code>, <code>damping</code>) and only modifying the spring constant, <code>ks</code>, we can see that at a lower <code>ks</code> value (<code>ks = 50 N/m</code>), the cloth has a bunch of folds, similar to a piece of aluminum foil or tissue paper. The ripples are very small and there are a bunch of self collisions, which makes sense intuitively since the spring constant is smaller. With a lower <code>ks</code>, the cloth is more malleable/flexible since it has less structure. We can compare this to <code>ks</code> being a greater value — when <code>ks = 50,000 N/m</code>, there are less folds ("bigger" folds compared to when <code>ks = 50 N/m</code>) and the strength of the cloth is greater due to the higher spring constant.
+			</p>
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p4-ks=50-1.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, <code>ks = 50 N/m</code>, very small waves
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p4-ks=50-2.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, <code>ks = 50 N/m</code>, with many self-collisions/ripples
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p4-ks=50000-1.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, <code>ks = 50,000 N/m</code>, much larger waves
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p4-ks=50000-2.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, <code>ks = 50,000 N/m</code>, larger folds as it begins to settle
+					</p>
+				 </div>
+			</div>
+
+			<br>
+
+			<h3>Changing <code>density</code></h3>
+
+			<p>
+				When maintaining the default parameters (<code>ks</code>, <code>damping</code>) and only modifying the <code>density</code>, we can see that at a lower density (<code>density = 1 g/cm^2</code>), the cloth mimics gift wrapping paper in the way it folds (and its appearance). This makes sense because paper generally has low density and doesn't "bunch up" together. A lower density equates to a lower mass, hence why there is less force applied and less self collisions. In contrast, at a higher density, there is greater mass so a larger force is applied to the cloth, causing more self-collisions. This is depicted when <code>density = 50 g/cm^2</code>, where the cloth has more folds/ripples (less able to hold its structure) and appears "heavier" like a blanket.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p4-density=1-1.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, <code>density = 1 g/cm^2</code>, beginning to fold over
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p4-density=1-2.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, <code>density = 1 g/cm^2</code>, slowly unravelling
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p4-density=50-1.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, <code>density = 50 g/cm^2</code>, many small ripples
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p4-density=50-2.png" width="100%" />
+					<p>
+						<code>../scene/selfCollision.json</code>, <code>density = 50 g/cm^2</code>, still falling down with more ripples/folds
+					</p>
+				 </div>
+			</div>
+
+			<br>
+
+			<hr>
+			<a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-5">
+				<h2 align="middle">Part 5: Cloth Sim</h2>
+			</a>
+			<hr>
+
+			<blockquote><b>
+				Explain in your own words what is a shader program and how vertex and fragment shaders work together to create lighting and material effects.
+			</b></blockquote>
+
+			<p>
+				For this part, we are creating various shaders using the language GLSL. A shader program is used to make rendering more efficient/faster by transferring rendering workload from the CPU to the GPU (processes the vertex and fragments in the rasterization pipeline). Two shader types — vertex and fragment — work together to create the lighting and material effects that we want. The vertex shader deals with the position and transforms of the vertices themselves (from the 3D positions to 2D screen space based on the camera position and perspective). After processing the vertex positions, it will save the final vertex position. The output of the vertex shader is inputted into the fragment shader, which essentially just calculates the final color to be outputted after factoring in lighting, textures, and material properties. It does this by reading the geometric attributes passed in, and doing the appropiate calculations to get the exact color to be outputted by that fragment. The combination of these two shaders allows for the creation of realistic images in a computationally efficient approach.
+			</p>
+
+			<hr>
+			<h3 align="middle">Task 1: Diffuse Shading</h3>
+			<hr>
+
+			<p>
+				In this task, we implemented diffuse shading, which is related to Lambert's Law. To implement this, we used the equation given in lecture: we first found the dot product between the normal vector and the direction vector of the light. We ensured that it was a positive number, then multiplied it with the light intensity to get the final out color that we need.
+			</p>
+
+			<div style="text-align: center;">
+				<img src="images/p5-diffuse.png" width="50%" />
+				<p><code>../scene/sphere.json</code>, diffuse shading</p>
+			</div>
+
+			<hr>
+			<h3 align="middle">Task 2: Blinn-Phong Shading</h3>
+			<hr>
+			<blockquote><b>
+				Explain the Blinn-Phong shading model in your own words. 
+				Show a screenshot of your Blinn-Phong shader outputting only the ambient component, a screen shot only outputting the diffuse component, a screen shot only outputting the specular component, and one using the entire Blinn-Phong model.
+			</b></blockquote>
+
+			<p>
+				The Blinn-Phong shading model essentially takes in three different aspects — ambient, diffuse, and specular — and adds them together to create the final shader. The ambient shading accounts for the constant color without any other factors involved. The diffuse shading accounts for the light and how it interacts with the curve of the object, but it is independent of the view direction. The specular shading accounts for view direction, adding in the intensity of the light based on that. Adding together these three components creates a very realistic shader, accounting for the different parts of the environment.
+			</p>
+
+			<p>
+				In this task, we implemented these three parts to create the final Blinn-Phong shader. For the diffuse shader, we took the code from Task 1 of this part. For the ambient portion, we simply added the input color itself. For the specular portion, we wanted an effect similar to a mirror. Instead of using the regular normal vector, we used the bisector vector of the light and view vectors. This way, it would depend on the view direction as we want. Finally, we just added all three of these parts to get the final out color.
+			</p>
+
+			<ul>
+				<li>
+					Ambinent: Flat lighting applied to the whole scene uniformly (constant)
+				</li>
+				<li>
+					Diffuse: Light in now factored in based on the distance to an object + angle the light falls upon --> matte appearance
+				</li>
+				<li>
+					Specular: Reflection of light on "glossy" surfaces and is dependent on the view
+				</li>
+			</ul>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-ambient-shading.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, ambient component only
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-diffuse-shading.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, diffuse component only
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-specular-shading.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, specular component only
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-phong-shading.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, complete Blinn-Phong model
+					</p>
+				 </div>
+			</div>
+
+			<hr>
+			<h3 align="middle">Task 3: Texture Mapping</h3>
+			<hr>
+
+			<p>
+				In this task, we wanted to create a shader that maps a given texture to the object. We implemented this taking advantage of the <code>texture()</code> function in GLSL that allows us to sample from the given texture at a certain location. Using this, we can get our final out color needed.
+			</p>
+
+			<blockquote><b>
+				Show a screenshot of your texture mapping shader using your own custom texture by modifying the textures in <code>/textures/</code>.
+			</b></blockquote>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-campanile-texture.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, default Campanile texture shader
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-custom-texture.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, custom texture shader
+					</p>
+				 </div>
+			</div>
+
+			<hr>
+			<h3 align="middle">Task 4: Displacement and Bump Mapping</h3>
+			<hr>
+
+			<blockquote><b>
+				Show a screenshot of bump mapping on the cloth and on the sphere. 
+				Show a screenshot of displacement mapping on the sphere. 
+				Use the same texture for both renders. 
+				You can either provide your own texture or use one of the ones in the textures directory, 
+				BUT choose one that's not the default <code>texture_2.png</code>. 
+				Compare the two approaches and resulting renders in your own words. 
+				Compare how your the two shaders react to the sphere by changing the sphere mesh's coarseness by using <code>-o 16 -a 16</code> and then <code>-o 128 -a 128</code>.
+			</b></blockquote>
+
+			<p>
+				In this task, we implemented shaders that account for bumps and displacement. For the bump mapping, we used a height map to calculate a new normal vector at a certain point, and used that vector for the Blinn-Phong shading instead of the original normal. To calculate this new normal, we look at how the height changes using the height map. We used the <code>r</code> component of the color to figure this out, and used the vector position as well as height and normal scalars to find the final normal vector. 
+			</p>
+
+			<p>
+				Below are screenshots of running <code>./clothsim -f ../scene/sphere.json</code> with bump mapping, setting the normal to 5 and height to 1, using <code>texture3.png</code>.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-bump-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Bump Mapping on the Sphere
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-bump-cloth.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Bump Mapping on the Cloth
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-bump-cloth-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Bump Mapping on the Sphere and Cloth
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-bump-normal=5-height=1.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Bump Mapping
+					</p>
+				 </div>
+			</div>
+
+			<p>
+				On the other hand, for displacement mapping, we are also adjusting the actual position of the vertices to match the map, creating the displacement that we see on the object. All together, we have the bump created by the new normals that we calculated, as well as varying vertex positions to account for corresponding displacements. We did this by updating <code>Displacement.vert</code> and changed <code>gl_position</code> since it represents the screen space position.
+			</p>
+
+			<p>
+				Below are screenshots of running <code>./clothsim -f ../scene/sphere.json</code> with displacement mapping, setting the normal to 100 and height to 0.05, using <code>texture3.png</code>.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-displacement-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Displacement Mapping on the Sphere
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-displacement-cloth.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Displacement Mapping on the Cloth
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-displacement-cloth-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Displacement Mapping on the Sphere and Cloth
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-displacement-normal=100-height=0.05.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Displacement Mapping
+					</p>
+				 </div>
+			</div>
+
+			<h3>Bump vs Displacement Mapping</h3>
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-bump-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Bump Mapping on the Sphere
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-displacement-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Displacement Mapping on the Sphere
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-bump-normal=5-height=1.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Bump Mapping on the Sphere and Cloth
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-displacement-normal=100-height=0.05.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Displacement Mapping on the Sphere and Cloth
+					</p>
+				 </div>
+			</div>
+
+			<p>
+				We can see that bump mapping still maintains the smoothness of the sphere since only the fragments are modified, creating the visual effect of bumps and indents. On the other hand, displacement mapping changes the location of each vertex, causing it to be more deformed and "spiky".
+			</p>
+
+			<h3>Changing Coarseness</h3>
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-bump-o=16-a=16.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Bump Mapping <code>-o 16 -a 16</code>
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-displacement-o=128-a=128.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Displacement Mapping <code>-o 16 -a 16</code>
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-bump-o=128-a=128.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Bump Mapping <code>-o 128 -a 128</code>
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-displacement-o=128-a=128.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, Displacement Mapping <code>-o 128 -a 128</code>
+					</p>
+				 </div>
+			</div>
+
+			<p>
+				Above are screenshots of running <code>./clothsim -f ../scene/sphere.json</code> with bump and displacement mapping, setting the normal to 100 and height to 0.05, using <code>texture3.png</code>. The coarseness is altered by <code>-o 16 -a 16</code> and <code>-o 128 -a 128</code>.
+			</p>
+
+			<p>
+				When changing the coarseness of the sphere, we can immediately see that displacement mapping impacts coarseness more than bump mapping does. With lower coarseness, there's less sampling points to change the vertices of, hence why there are jumps and the sphere appears more "spikey". At a higher resolution, the coarseness is higher and the surface texture of the sphere is more realistic. The spikes are also less pronounced because more vertices' positions are displaced, causing the overall sphere to apear more "round".
+			</p>
+
+			<p>
+				With bump mapping, there is little difference in the sphere's shape because the positions of the vertices don't change.
+			</p>
+
+			<hr>
+			<h3 align="middle">Task 5: Environment-mapped Reflections</h3>
+			<hr>
+
+			<p>
+				In this task, we want to create a shader that creates a direct reflection of the environment, like a mirror. We do this by finding the outgoing eye-ray, \(w_o\) by subtracting the camera's position <code>u_cam_pos</code> from the fragment's position (<code>v_position</code>). Then, we calculate the incoming eye-ray, \(w_i\) with the formula \(w_o - 2(w_o * n) * n\). Afterwards, we sample the texture for the incoming direction \(w_i\) calculated.
+			</p>
+
+			<blockquote><b>
+				Show a screenshot of your mirror shader on the cloth and on the sphere.
+			</b></blockquote>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-mirror-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, mirror shader on the sphere
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-mirror-cloth.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, mirror shader on the cloth
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-mirror-cloth-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, mirror shader on the sphere and cloth
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-mirror.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, mirror shader
+					</p>
+				 </div>
+			</div>
+
+			<hr>
+			<a>
+				<h2 align="middle">Part 6: Extra Credit</h2>
+			</a>
+			<hr>
+
+			<p>
+				In preparation for our final project, we wanted to get experience with building our custom shader. We intended to simulate the appearance of water with random darker dots on the surface (i.e static on an old TV screen) and the final output is similar to that.
+			</p>
+
+			<p>
+				To generate the random dots, we initially searched for a random function in GLSL but couldn't find one. Therefore, we created our own random number generator based on this <a href="http://www.science-and-fiction.org/rendering/noise.html" target="_blank">source</a> and adjusted the numbers accordingly. The function returns a random number between 0 and 1.
+			</p>
+			
+
+			<p>
+				If the random number is < 0.5, we set all the <code>k_coefficients</code> to <code>0.4</code>. Otherwise, we set all the <code>k_coefficients</code> to <code>0.9</code>. The shader calculates the dots by multiplying the normal vector <code>v_normal.xyz</code> with the coefficients. This adjusts the darkness of the dots based on the surface normal.
+			</p>
+
+			<p>
+				To create the blue color of water, we experiment with different RGB values and added that to our vector of dots. We attempted to create the transparent/translucence appearance of water via <code>vec4 transparent_water = vec4(water_color, 0.5)</code> which semi-worked. This was done by combining the water color with an alpha value, resulting in partial transparency.
+			</p>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-custom-shader-sphere.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, sphere view with custom shader
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-custom-shader-cloth.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, cloth view with custom shader
+					</p>
+				 </div>
+			</div>
+
+			<div style="display: flex; justify-content: space-between;">
+				<div style="flex: 1; margin-right: 10px; text-align: center;">
+					<img src="images/p5-custom-shader-sphere-cloth.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, sphere and cloth view with custom shader
+					</p>
+				</div>
+				<div style="flex: 1; margin-left: 10px; text-align: center;">
+					<img src="images/p5-custom-shader.png" width="100%" />
+					<p>
+						<code>../scene/sphere.json</code>, view with custom shader
+					</p>
+				 </div>
+			</div>
+
+			<div style="text-align: center;">
+				<img src="images/p5-custom-shader-under.png" width="50%" />
+				<p><code>../scene/sphere.json</code>, underneath the cloth with custom shader, showcasing the random dots</p>
+			</div>
+
+			<p>
+				The shader is "holographic" on the underside of the cloth while the sphere is a combination of light blue, dark blue, pink, and white. The top of the cloth is more translucent, where the screenshot of the cloth on the sphere gives off the illusion of the ball not being present. Overall, the shader mimics a glossy and thin sheet of holographic paper on the underside, while resembling a shiny jellyfish body from the side view to me.
+			</p>
+
+			<hr>
+			
+		</div>
+	</body>
+</html>
