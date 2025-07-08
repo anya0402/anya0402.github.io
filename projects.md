@@ -27,3 +27,18 @@ Various coding projects created in the realm of graphics:
 ### [Rasterizer - February 2024](rasterizer/index.html)
 - Incorporated supersampling to have less aliasing in images with jagged pixel edges
 - Gained an understanding of Barycentric coordinates by creating a color wheel using the necessary formulas
+
+&nbsp;
+
+
+
+-------
+## Animation
+-------
+&nbsp;
+
+3D-animated short films created with the software Autodesk Maya:
+
+### [Stuffed Animal](https://youtu.be/mdOORVKXDkY?si=koPNOIb7yRLtryYw)
+
+### [The Balloon](https://youtu.be/Jz7I77bFW84?si=AmPSNPBZ2hq-0p8H)

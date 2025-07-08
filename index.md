@@ -33,7 +33,7 @@ layout: page
     }
 </style>
 
-<div class="headertext">Welcome to my website!</div>
+<div class="headertext">Welcome to Anya's website!</div>
 
 <p style="text-align: center;">Click on the following buttons to learn more about me:</p>
 

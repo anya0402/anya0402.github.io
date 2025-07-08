@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+  <title>Happy Anniversary</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Outfit', serif;
+      background: #fff2de;
+      color: #3b3b3b;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #d66f91;
+      font-size: 3em;
+      margin-bottom: 20px;
+    }
+
+    .photos {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 40px 0;
+    }
+
+    .photo {
+      flex: 1;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      border-radius: 5px;
+      border: 2px solid #815407;
+      width: 100px;
+    }
+
+    /* Envelope styles */
+    .envelope-container {
+      margin: 60px auto;
+      width: 300px;
+      height: 200px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .envelope-base {
+      width: 100%;
+      height: 100%;
+      background: #fcd6d6;
+      border: 5px solid #d66f91;
+      border-radius: 6px;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .envelope-flap {
+      width: 0;
+      height: 0;
+      border-left: 150px solid transparent;
+      border-right: 150px solid transparent;
+      border-bottom: 100px solid #d66f91;
+      position: absolute;
+      top: -96px;
+      left: 5px;
+      z-index: 2;
+      transform-origin: bottom center;
+      transform: rotateX(-180deg);
+      transition: transform 0.7s ease;
+    }
+
+    .envelope-container.open .envelope-flap {
+      transform: rotateX(0deg);
+    }
+
+    .envelope-text {
+      position: absolute;
+      top: 120px;
+      width: 100%;
+      text-align: center;
+      font-size: 1.1em;
+      color: #d66f91;
+      font-weight: bold;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(182,86,128,0.3);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background-color: #fffdfd;
+      border: 2px solid #9dcfb2;
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 600px;
+      width: 90%;
+      /* box-shadow: 0 0 20px rgba(0,0,0,0.2); */
+      position: relative;
+    }
+
+    .modal h2 {
+      color: #a84666;
+      margin-top: 0;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 1.5em;
+      color: #888;
+      cursor: pointer;
+    }
+
+    textarea.letter-box {
+      width: 90%;
+      height: 250px;
+      padding: 15px;
+      font-family: 'Georgia', serif;
+      font-size: 1em;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background-color: #fefefe;
+      resize: vertical;
+    }
+
+    /* Falling flowers */
+    .flower-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 999;
+    }
+
+    .flower {
+      position: absolute;
+      font-size: 24px;
+      animation: fall linear forwards;
+    }
+
+    @keyframes fall {
+      0% {
+        transform: translateY(-10%) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(110vh) rotate(360deg);
+        opacity: 0;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="flower-container" id="flowerContainer"></div>
+  <div class="container">
+    <h1>happy anniversary my love :)</h1>
+
+    <div class="photos">
+        <img src="IMG_4697.JPG" alt="Photo 1" class="photo" />
+        <img src="IMG_7178.JPG" alt="Photo 2" class="photo" />
+    </div>
+
+    <!-- Envelope -->
+    <div class="envelope-container" id="envelopeContainer">
+      <div class="envelope-flap"></div>
+      <div class="envelope-base"></div>
+      <div class="envelope-text">click to open!</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <audio autoplay loop controls>
+        <source src="linger_cranberries.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="letterModal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeModal">&times;</span>
+      <h3>my dear cynthia,</h3>
+      <div class="letter-box" readonly>
+happy two years!! i still can't believe how long it's been - we were leetol babies when we started dating! words are not enough to describe how amazing you are and how much you mean to me. your soul is beautiful, like sunshine illuminating everything it touches. you truly light up every room you walk into, and light up every person with it. you're so silly with your silly little jokes, and i can't wait to keep giggling and heeheeing and haahaaing with you for years to come :D you are the strongest and the smartest person i know, and i can't wait to see you girlboss your way through life and destroy every man in your way! we're going to be far apart for a bit and it will be sad, but as long as i have you by my side, even if it's through a computer screen, i know that everything will be okay. after all, it's you who is my cozy lil home! you make me feel so safe and loved, and i am so so grateful for you. i love you so much, these past two years have genuinely been the happiest years of my life, and i can't wait to continue life with you. i'm looking forward to that dinkwad life fr. i love you so much, my sunshine, my bebeccino, my pebble. happy anniversary! <3 
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const envelope = document.getElementById('envelopeContainer');
+    const modal = document.getElementById('letterModal');
+    const closeModal = document.getElementById('closeModal');
+
+    let isOpen = false;
+
+    envelope.addEventListener('click', () => {
+      isOpen = !isOpen;
+
+      if (isOpen) {
+        envelope.classList.add('open');
+        setTimeout(() => {
+          modal.style.display = 'flex';
+        }, 700); // after flap opens
+      } else {
+        envelope.classList.remove('open');
+        modal.style.display = 'none';
+      }
+    });
+
+    closeModal.onclick = () => {
+      isOpen = false;
+      envelope.classList.remove('open');
+      modal.style.display = 'none';
+    };
+
+    window.onclick = e => {
+      if (e.target === modal) {
+        isOpen = false;
+        envelope.classList.remove('open');
+        modal.style.display = 'none';
+      }
+    };
+
+    const flowerContainer = document.getElementById('flowerContainer');
+    const flowerCount = 30;
+
+    for (let i = 0; i < flowerCount; i++) {
+      const flower = document.createElement('div');
+      flower.className = 'flower';
+      flower.innerText = '🌸';
+      flower.style.left = Math.random() * 100 + 'vw';
+      flower.style.animationDuration = (4 + Math.random() * 4) + 's';
+      flower.style.fontSize = (20 + Math.random() * 20) + 'px';
+      flower.style.animationDelay = (Math.random() * 2) + 's';
+      flowerContainer.appendChild(flower);
+    }
+
+    // Optional: Remove flowers after animation
+    setTimeout(() => {
+      flowerContainer.remove();
+    }, 8000);
+  </script>
+
+</body>
+</html>

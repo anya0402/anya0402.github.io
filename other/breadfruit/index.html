@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+  <title>Secure Access</title>
+  <style>
+    body {
+      font-family: Outfit, sans-serif;
+      display: flex;
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+      background-color: #fadce9;
+    }
+    .login-box {
+      background: white;
+      padding: 2em;
+      border-color: #b85891;
+      border-style: solid;
+      border-radius: 6px;
+      align-items: center;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      /* box-shadow: 0 0 10px rgba(0,0,0,0.1); */
+    }
+    input[type="password"] {
+      padding: 0.5em;
+      width: 90%;
+      margin-bottom: 1em;
+    }
+    button {
+      padding: 0.5em 1em;
+      width: 100%;
+      background-color: #90bd6f;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .error {
+      color: red;
+      margin-top: 0.5em;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <a style="font-size: 30px; font-weight: 500;">Enter Password</a>
+    <a style="font-size: 15px; font-weight: 350; padding-bottom: 20px;">hint: best pizza flavor</a>
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="checkPassword()">Submit</button>
+    <div id="error" class="error"></div>
+  </div>
+
+  <script>
+    function checkPassword() {
+      const correctPassword = "beberoni";
+      const enteredPassword = document.getElementById("password").value;
+      const errorDiv = document.getElementById("error");
+
+      if (enteredPassword === correctPassword) {
+        window.location.href = "anniversary.html"; // Redirect page
+      } else {
+        errorDiv.textContent = "Incorrect password. Try again.";
+      }
+    }
+  </script>
+</body>
+</html>
