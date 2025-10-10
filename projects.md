@@ -4,12 +4,52 @@ title: Projects
 permalink: /projects/
 ---
 
+## GPU Programming
+Projects written primarily in CUDA to take advantage of the GPU for accelerations and optimizations:
+
+<div style="display: flex; align-items: flex-start; gap: 2em;">
+  <img src="../images/gpu_pathtracer.png" style="width:300px; border-radius:10px;"/>
+  <div>
+    <h3><a href="https://github.com/anya0402/Project3-CUDA-Path-Tracer">CUDA GPU Path Tracer - October 2025</a></h3>
+    <ul>
+      <li>Built a GPU-accelerated pathtracer using CUDA and C++, supporting multiple material shaders, antialiasing, and more.</li>
+      <li>Integrated bounding volume hierarchy acceleration to optimize loading .OBJ files, creating a 9x speedup for large meshes.</li>
+      <li>Added the ability to make fast and complex renders with texture mapping, and stream compaction for path termination.</li>
+    </ul>
+  </div>
+</div>
+
+<div style="display: flex; align-items: flex-start; gap: 2em;">
+  <img src="../images/boids.png" style="width:300px; border-radius:10px;"/>
+  <div>
+    <h3><a href="https://github.com/anya0402/Project1-CUDA-Flocking">CUDA Boids Flocking Simulator - September 2025</a></h3>
+    <ul>
+      <li>Developed a real-time, optimized flocking simulation on the GPU using CUDA, based on the Reynolds Boids algorithm.</li>
+      <li>Implemented spatial-partitioning algorithms for memory coherence, resulting in a speedup from quadratic to linear time.</li>
+      <li>Used CUDA event timers and NVIDIA NSight platforms to analyze and evaluate performance of flocking simulations.</li>
+    </ul>
+  </div>
+</div>
+
+<div style="display: flex; align-items: flex-start; gap: 2em;">
+  <img src="../images/stream_compaction.png" style="width:300px; border-radius:10px;"/>
+  <div>
+    <h3><a href="https://github.com/anya0402/Project2-Stream-Compaction">Stream Compaction - September 2025</a></h3>
+    <ul>
+      <li>Implemented stream compaction on the GPU using CUDA, based on the <a href="https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda">NVIDIA GPU Gems 3</a> book.</li>
+      <li>Designed a work-efficient scan to use for stream compaction, using up-sweep and down-sweep phases to reduce redundant parallel work and creating a 2.5x speedup from the naive scan.</li>
+      <li>Used NVIDIA Nsight Systems and Nsight Compute to analyze memory and kernel performance.</li>
+    </ul>
+  </div>
+</div>
+
+
 
 ## Computer Graphics
 Various coding projects created in the realm of graphics:
 
 ![image](../images/cbbunny.png){: style="float: left; margin-right: 3em; width: 200px"}
-### [Path Tracer - March 2024](pathtracer/index.html)
+### [CPU Path Tracer - March 2024](pathtracer/index.html)
 - Used bounding volume hierarchy algorithm to accelerate ray intersections with triangles and spheres. 
 - Rendered images using global illumination (direct/indirect lighting), and optimized using Monte Carlo probability.
 
