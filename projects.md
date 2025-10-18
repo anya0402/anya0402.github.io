@@ -20,6 +20,18 @@ Projects written primarily in CUDA to take advantage of the GPU for acceleration
 </div>
 
 <div style="display: flex; align-items: flex-start; gap: 2em;">
+  <img src="../images/webgpu.png" style="width:300px; border-radius:10px;"/>
+  <div>
+    <h3><a href="https://github.com/anya0402/Project4-WebGPU-Forward-Plus-and-Clustered-Deferred">WebGPU Forward+ and Clustered Deferred Shaders - October 2025</a></h3>
+    <ul>
+      <li>Used the WebGPU API and implemented Forward+ and Clustered Deferred shading pipelines to optimizing the processing of several dynamic lights.</li>
+      <li>Integrated geometry-buffer optimizations and clustering for light culling, resulting in an average of 25x speedup.</li>
+      <li><a href="https://anya0402.github.io/Project4-WebGPU-Forward-Plus-and-Clustered-Deferred/">View a live demo here!</a></li>
+    </ul>
+  </div>
+</div>
+
+<div style="display: flex; align-items: flex-start; gap: 2em;">
   <img src="../images/boids.png" style="width:300px; border-radius:10px;"/>
   <div>
     <h3><a href="https://github.com/anya0402/Project1-CUDA-Flocking">CUDA Boids Flocking Simulator - September 2025</a></h3>
