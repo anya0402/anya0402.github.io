@@ -4,7 +4,6 @@ title: About
 permalink: /about/
 ---
 
-images/anya-agarwal-pfp.jpeg
 ![image](images/anya-agarwal-pfp.jpeg){: style="float: left; margin-right: 4em; width: 300px"}
 
 Hi! I’m Anya Agarwal, a first year Master's student studying Computer Graphics and Game Technology at the University of Pennsylvania.
